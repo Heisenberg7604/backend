@@ -23,8 +23,30 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // CORS configuration
+const allowedOrigins = [
+    'http://localhost:8081',  // Expo default
+    'http://localhost:19006',  // Expo web
+    'http://localhost:3000',   // Common React port
+    'exp://192.168.1.100:8081', // Physical device (replace with your IP)
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:8081',
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        // For development, allow any localhost origin
+        if (origin && origin.includes('localhost')) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true
 }));
 
@@ -38,14 +60,18 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/jpapp')
-    .then(() => {
-        console.log('✅ Connected to MongoDB');
-    })
-    .catch((error) => {
-        console.error('❌ MongoDB connection error:', error);
-        process.exit(1);
-    });
+if (process.env.MONGODB_URI) {
+    mongoose.connect(process.env.MONGODB_URI)
+        .then(() => {
+            console.log('✅ Connected to MongoDB');
+        })
+        .catch((error) => {
+            console.error('❌ MongoDB connection error:', error);
+            console.log('⚠️  Server will continue without database connection');
+        });
+} else {
+    console.log('⚠️  No MongoDB URI provided - server running without database');
+}
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -53,6 +79,16 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/catalogue', require('./routes/catalogue'));
 app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/notifications', require('./routes/notifications'));
+
+// Basic health check (no database dependency)
+app.get('/', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        message: 'JP App Backend is running',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV
+    });
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
