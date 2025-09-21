@@ -1,0 +1,71 @@
+# === Node / Express backend ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+*.out
+*.err
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Build outputs
+dist/
+build/
+tmp/
+temp/
+
+# === React Native specific ===
+# Expo
+.expo/
+.expo-shared/
+
+# Metro / bundler
+.expo-cache/
+.packager/
+.expo-dev-cache/
+.expo-web/
+
+# React Native Android
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+*.apk
+*.keystore
+
+# React Native iOS
+ios/Pods/
+ios/build/
+ios/DerivedData/
+*.xcworkspace
+*.xcodeproj/project.xcworkspace/
+*.xcuserstate
+*.xcuserdatad
+
+# React Native misc
+*.lock
+*.log
+*.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# === Optional: Mac/
