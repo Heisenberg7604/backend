@@ -47,7 +47,7 @@ const register = async (req, res) => {
         await user.save();
 
         // Create notification for admin
-        await Notification.create({
+        const notification = await Notification.create({
             title: 'New User Registration',
             message: `${name} from ${companyName} has registered`,
             type: 'user_registration',
@@ -59,6 +59,29 @@ const register = async (req, res) => {
                 email
             }
         });
+
+        // Emit real-time notification to admin panel
+        const io = req.app.get('io');
+        if (io) {
+            io.to('admin').emit('newUser', {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    companyName: user.companyName,
+                    city: user.city,
+                    createdAt: user.createdAt
+                },
+                notification: {
+                    id: notification._id,
+                    title: notification.title,
+                    message: notification.message,
+                    type: notification.type,
+                    priority: notification.priority,
+                    createdAt: notification.createdAt
+                }
+            });
+        }
 
         // Generate token
         const token = generateToken(user._id);

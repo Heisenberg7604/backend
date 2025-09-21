@@ -6,9 +6,19 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: process.env.FRONTEND_URL || 'http://localhost:8081',
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
+});
 
 // Security middleware
 app.use(helmet());
@@ -118,12 +128,28 @@ app.use('*', (req, res) => {
     });
 });
 
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+    console.log('🔌 Admin connected:', socket.id);
+
+    // Join admin room
+    socket.join('admin');
+
+    socket.on('disconnect', () => {
+        console.log('🔌 Admin disconnected:', socket.id);
+    });
+});
+
+// Make io available to other modules
+app.set('io', io);
+
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📱 Environment: ${process.env.NODE_ENV}`);
     console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`🔌 Socket.IO server ready`);
 });
 
 module.exports = app;
