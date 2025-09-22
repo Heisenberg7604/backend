@@ -87,6 +87,24 @@ app.use('/api/catalogue', require('./routes/catalogue'));
 app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/notifications', require('./routes/notifications'));
 
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// Handle React Router (return index.html for all non-API routes)
+app.get('*', (req, res) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({
+            success: false,
+            message: 'API route not found',
+            error: 'not_found'
+        });
+    }
+
+    // Serve React app for all other routes
+    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+});
+
 // Basic health check (no database dependency)
 app.get('/', (req, res) => {
     res.status(200).json({
@@ -124,9 +142,9 @@ app.get('/api/health', (req, res) => {
 
 // Keep-alive endpoint for Sevalla
 app.get('/api/ping', (req, res) => {
-    res.status(200).json({ 
-        status: 'pong', 
-        timestamp: new Date().toISOString() 
+    res.status(200).json({
+        status: 'pong',
+        timestamp: new Date().toISOString()
     });
 });
 
