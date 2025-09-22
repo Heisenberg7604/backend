@@ -105,10 +105,20 @@ app.get('/api/health', (req, res) => {
             status: 'OK',
             uptime: process.uptime(),
             timestamp: new Date().toISOString(),
-            environment: process.env.NODE_ENV
+            environment: process.env.NODE_ENV,
+            memory: process.memoryUsage(),
+            pid: process.pid
         },
         message: 'JP App Backend is running',
         error: null
+    });
+});
+
+// Keep-alive endpoint for Sevalla
+app.get('/api/ping', (req, res) => {
+    res.status(200).json({ 
+        status: 'pong', 
+        timestamp: new Date().toISOString() 
     });
 });
 
@@ -136,10 +146,37 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('🛑 SIGTERM received, shutting down gracefully');
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    console.log('🛑 SIGINT received, shutting down gracefully');
+    process.exit(0);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+    console.error('💥 Uncaught Exception:', err);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
+});
+
+const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📱 Environment: ${process.env.NODE_ENV}`);
     console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`⏰ Started at: ${new Date().toISOString()}`);
 });
+
+// Keep the process alive
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
 
 module.exports = app;
