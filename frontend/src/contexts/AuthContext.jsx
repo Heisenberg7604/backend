@@ -29,14 +29,17 @@ export function AuthProvider({ children }) {
 
   const verifyToken = async () => {
     try {
+      console.log('🔍 Verifying token with API:', import.meta.env.VITE_API_URL);
       const response = await apiService.get('/auth/profile')
       if (response.success) {
         setUser(response.data.user)
         setIsAuthenticated(true)
       } else {
+        console.log('❌ Token verification failed:', response.message);
         logout()
       }
     } catch (error) {
+      console.log('❌ Token verification error:', error);
       logout()
     } finally {
       setLoading(false)

@@ -67,11 +67,19 @@ if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
 }
 
-// MongoDB connection
+// MongoDB connection with optimized settings
 if (process.env.MONGODB_URI) {
-    mongoose.connect(process.env.MONGODB_URI)
+    const mongooseOptions = {
+        maxPoolSize: 5, // Limit connection pool size
+        serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+        socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+        bufferMaxEntries: 0, // Disable mongoose buffering
+        bufferCommands: false, // Disable mongoose buffering
+    };
+
+    mongoose.connect(process.env.MONGODB_URI, mongooseOptions)
         .then(() => {
-            console.log('✅ Connected to MongoDB');
+            console.log('✅ Connected to MongoDB with optimized settings');
         })
         .catch((error) => {
             console.error('❌ MongoDB connection error:', error);
@@ -142,26 +150,50 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+    const memUsage = process.memoryUsage();
+    const healthData = {
+        status: 'OK',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        memory: {
+            used: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
+            total: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
+            external: Math.round(memUsage.external / 1024 / 1024) + 'MB'
+        },
+        pid: process.pid,
+        version: process.version,
+        platform: process.platform,
+        heartbeatCount: heartbeatCount
+    };
+
+    console.log('🏥 Health check requested:', healthData);
     res.status(200).json({
         success: true,
-        data: {
-            status: 'OK',
-            uptime: process.uptime(),
-            timestamp: new Date().toISOString(),
-            environment: process.env.NODE_ENV,
-            memory: process.memoryUsage(),
-            pid: process.pid
-        },
+        data: healthData,
         message: 'JP App Backend is running',
         error: null
     });
 });
 
-// Keep-alive endpoint for Sevalla
+// Enhanced ping endpoint for Sevalla
 app.get('/api/ping', (req, res) => {
+    console.log('🏓 Ping requested at:', new Date().toISOString());
     res.status(200).json({
         status: 'pong',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB'
+    });
+});
+
+// Simple API test endpoint
+app.get('/api/test', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'API is working',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV
     });
 });
 
@@ -218,13 +250,27 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Log every 5 seconds to keep process alive and show it's working
+let heartbeatCount = 0;
 setInterval(() => {
-    console.log('💓 Heartbeat - Server is alive:', {
+    heartbeatCount++;
+    console.log(`💓 Heartbeat #${heartbeatCount} - Server is alive:`, {
         uptime: Math.round(process.uptime()),
         memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        pid: process.pid
     });
+
+    // Force garbage collection every 10 heartbeats to keep memory low
+    if (heartbeatCount % 10 === 0 && global.gc) {
+        global.gc();
+        console.log('🧹 Garbage collection performed');
+    }
 }, 5000);
+
+// Additional keep-alive mechanism - ping every 30 seconds
+setInterval(() => {
+    console.log('🏓 Keep-alive ping:', new Date().toISOString());
+}, 30000);
 
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
@@ -232,10 +278,30 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
     console.log(`⏰ Started at: ${new Date().toISOString()}`);
     console.log(`🔗 Server listening on: 0.0.0.0:${PORT}`);
+    console.log(`💾 Initial memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
 });
 
-// Keep the process alive
+// Optimize server settings for Sevalla
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
+server.requestTimeout = 30000;
+
+// Prevent server from closing on idle
+server.on('connection', (socket) => {
+    socket.setKeepAlive(true);
+    socket.setTimeout(0);
+});
+
+// Log server events
+server.on('error', (err) => {
+    console.error('🚨 Server error:', err);
+});
+
+server.on('close', () => {
+    console.log('🔒 Server closed');
+});
+
+// Prevent process from exiting
+process.stdin.resume();
 
 module.exports = app;
