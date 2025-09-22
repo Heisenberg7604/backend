@@ -14,6 +14,21 @@ const app = express();
 // Trust proxy for rate limiting (required for Sevalla/Cloudflare)
 app.set('trust proxy', 1);
 
+// IMMEDIATE health check - respond before any middleware
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/ping', (req, res) => {
+    res.status(200).json({ status: 'pong', timestamp: new Date().toISOString() });
+});
+
+console.log('🚀 Express app created, health checks ready');
+
 // Security middleware
 app.use(helmet());
 app.use(compression());
@@ -73,7 +88,7 @@ if (process.env.NODE_ENV === 'development') {
     });
 }
 
-// MongoDB connection with optimized settings
+// MongoDB connection with optimized settings (non-blocking)
 if (process.env.MONGODB_URI) {
     const mongooseOptions = {
         maxPoolSize: 5, // Limit connection pool size
@@ -83,6 +98,7 @@ if (process.env.MONGODB_URI) {
         bufferCommands: false, // Disable mongoose buffering
     };
 
+    // Connect to MongoDB asynchronously (non-blocking)
     mongoose.connect(process.env.MONGODB_URI, mongooseOptions)
         .then(() => {
             console.log('✅ Connected to MongoDB with optimized settings');
@@ -94,6 +110,10 @@ if (process.env.MONGODB_URI) {
 } else {
     console.log('⚠️  No MongoDB URI provided - server running without database');
 }
+
+// Signal process is ready
+process.emit('ready');
+console.log('📡 Process ready signal sent');
 
 // Serve frontend static files FIRST
 const frontendPath = path.join(__dirname, '../frontend/dist');
@@ -291,6 +311,18 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`⏰ Started at: ${new Date().toISOString()}`);
     console.log(`🔗 Server listening on: 0.0.0.0:${PORT}`);
     console.log(`💾 Initial memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
+
+    // Signal to Sevalla that app is ready
+    console.log('✅ APPLICATION READY FOR REQUESTS');
+
+    // Immediate health check test
+    setTimeout(() => {
+        console.log('🏥 Testing health check endpoint...');
+        fetch(`http://localhost:${PORT}/api/health`)
+            .then(res => res.json())
+            .then(data => console.log('✅ Health check test successful:', data))
+            .catch(err => console.log('❌ Health check test failed:', err.message));
+    }, 1000);
 });
 
 // Optimize server settings for Sevalla
