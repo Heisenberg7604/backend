@@ -93,7 +93,15 @@ app.get('/', (req, res) => {
         status: 'OK',
         message: 'JP App Backend is running',
         timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV
+        environment: process.env.NODE_ENV,
+        endpoints: {
+            health: '/api/health',
+            ping: '/api/ping',
+            auth: '/api/auth',
+            admin: '/api/admin',
+            catalogue: '/api/catalogue',
+            newsletter: '/api/newsletter'
+        }
     });
 });
 
@@ -149,6 +157,11 @@ const PORT = process.env.PORT || 5001;
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
     console.log('🛑 SIGTERM received, shutting down gracefully');
+    console.log('📊 Process info:', {
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        pid: process.pid
+    });
     process.exit(0);
 });
 
@@ -160,6 +173,7 @@ process.on('SIGINT', () => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
     console.error('💥 Uncaught Exception:', err);
+    console.error('Stack:', err.stack);
     process.exit(1);
 });
 
@@ -168,11 +182,21 @@ process.on('unhandledRejection', (reason, promise) => {
     process.exit(1);
 });
 
-const server = app.listen(PORT, () => {
+// Log every 5 seconds to keep process alive and show it's working
+setInterval(() => {
+    console.log('💓 Heartbeat - Server is alive:', {
+        uptime: Math.round(process.uptime()),
+        memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+        timestamp: new Date().toISOString()
+    });
+}, 5000);
+
+const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📱 Environment: ${process.env.NODE_ENV}`);
     console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
     console.log(`⏰ Started at: ${new Date().toISOString()}`);
+    console.log(`🔗 Server listening on: 0.0.0.0:${PORT}`);
 });
 
 // Keep the process alive
