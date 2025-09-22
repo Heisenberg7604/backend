@@ -6,6 +6,7 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -88,7 +89,13 @@ app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/notifications', require('./routes/notifications'));
 
 // Serve frontend static files
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+const frontendPath = path.join(__dirname, '../frontend/dist');
+if (fs.existsSync(frontendPath)) {
+    app.use(express.static(frontendPath));
+    console.log('✅ Frontend static files enabled');
+} else {
+    console.log('⚠️  Frontend dist folder not found - serving API only');
+}
 
 // Handle React Router (return index.html for all non-API routes)
 app.get('*', (req, res) => {
@@ -101,8 +108,18 @@ app.get('*', (req, res) => {
         });
     }
 
-    // Serve React app for all other routes
-    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+    // Check if frontend files exist
+    const indexPath = path.join(__dirname, '../frontend/dist/index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).json({
+            success: false,
+            message: 'Frontend not available - please deploy frontend separately',
+            error: 'frontend_not_found',
+            suggestion: 'Deploy frontend as separate Sevalla app or ensure frontend/dist exists'
+        });
+    }
 });
 
 // Basic health check (no database dependency)

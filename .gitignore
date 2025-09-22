@@ -32,6 +32,10 @@ build/
 tmp/
 temp/
 
+# Frontend dist (allow for deployment)
+!frontend/dist/
+!frontend/dist/**
+
 # === React Native specific ===
 # Expo
 .expo/
