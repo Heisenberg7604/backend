@@ -3,13 +3,14 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true },
     companyName: { type: String, required: true },
     phoneNumber: { type: String, required: true },
     city: { type: String, required: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     isActive: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false },
     emailVerified: { type: Boolean, default: false },
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
@@ -19,9 +20,9 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
-    
+
     try {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
@@ -32,17 +33,17 @@ userSchema.pre('save', async function(next) {
 });
 
 // Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Check if account is locked
-userSchema.virtual('isLocked').get(function() {
+userSchema.virtual('isLocked').get(function () {
     return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
 // Increment login attempts
-userSchema.methods.incLoginAttempts = function() {
+userSchema.methods.incLoginAttempts = function () {
     // If we have a previous lock that has expired, restart at 1
     if (this.lockUntil && this.lockUntil < Date.now()) {
         return this.updateOne({
@@ -50,19 +51,19 @@ userSchema.methods.incLoginAttempts = function() {
             $set: { loginAttempts: 1 }
         });
     }
-    
+
     const updates = { $inc: { loginAttempts: 1 } };
-    
+
     // Lock account after 5 failed attempts for 2 hours
     if (this.loginAttempts + 1 >= 5 && !this.isLocked) {
         updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 }; // 2 hours
     }
-    
+
     return this.updateOne(updates);
 };
 
 // Reset login attempts
-userSchema.methods.resetLoginAttempts = function() {
+userSchema.methods.resetLoginAttempts = function () {
     return this.updateOne({
         $unset: { loginAttempts: 1, lockUntil: 1 }
     });

@@ -2,10 +2,12 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const logActivity = require('../utils/logActivity');
+const { sendNotificationEmail } = require('../services/emailService');
 
 // Generate JWT Token
-const generateToken = (userId) => {
-    return jwt.sign({ userId }, process.env.JWT_SECRET, {
+const generateToken = (userId, role) => {
+    return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE || '7d'
     });
 };
@@ -46,6 +48,30 @@ const register = async (req, res) => {
 
         await user.save();
 
+        // Log user registration activity
+        await logActivity({
+            type: 'user_register',
+            userId: user._id,
+            details: { email, name, companyName, city },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+
+        // Send notification email to admins
+        await sendNotificationEmail({
+            subject: 'New User Registration',
+            message: `${name} from ${companyName} has registered on the JP App`,
+            type: 'user_registration',
+            data: {
+                userName: name,
+                userEmail: email,
+                companyName: companyName,
+                city: city,
+                ipAddress: req.ip,
+                timestamp: new Date()
+            }
+        });
+
         // Create notification for admin
         const notification = await Notification.create({
             title: 'New User Registration',
@@ -60,31 +86,8 @@ const register = async (req, res) => {
             }
         });
 
-        // Emit real-time notification to admin panel
-        const io = req.app.get('io');
-        if (io) {
-            io.to('admin').emit('newUser', {
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    companyName: user.companyName,
-                    city: user.city,
-                    createdAt: user.createdAt
-                },
-                notification: {
-                    id: notification._id,
-                    title: notification.title,
-                    message: notification.message,
-                    type: notification.type,
-                    priority: notification.priority,
-                    createdAt: notification.createdAt
-                }
-            });
-        }
-
         // Generate token
-        const token = generateToken(user._id);
+        const token = generateToken(user._id, user.role);
 
         res.status(201).json({
             success: true,
@@ -175,8 +178,33 @@ const login = async (req, res) => {
         user.lastLogin = new Date();
         await user.save();
 
+        // Log login activity
+        await logActivity({
+            type: 'login',
+            userId: user._id,
+            details: { email: user.email, role: user.role },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+
+        // Send notification email for admin logins
+        if (user.role === 'admin') {
+            await sendNotificationEmail({
+                subject: 'Admin Login',
+                message: `${user.name} (${user.email}) has logged into the admin panel`,
+                type: 'admin_login',
+                data: {
+                    userName: user.name,
+                    userEmail: user.email,
+                    companyName: user.companyName,
+                    ipAddress: req.ip,
+                    timestamp: new Date()
+                }
+            });
+        }
+
         // Generate token
-        const token = generateToken(user._id);
+        const token = generateToken(user._id, user.role);
 
         res.json({
             success: true,
@@ -208,7 +236,7 @@ const login = async (req, res) => {
 // Get current user profile
 const getProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId);
+        const user = await User.findById(req.user._id);
 
         if (!user) {
             return res.status(404).json({
@@ -257,7 +285,7 @@ const updateProfile = async (req, res) => {
         }
 
         const { name, companyName, phoneNumber, city } = req.body;
-        const userId = req.user.userId;
+        const userId = req.user._id;
 
         const user = await User.findById(userId);
         if (!user) {

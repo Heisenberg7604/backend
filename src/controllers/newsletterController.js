@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const NewsletterSubscriber = require('../models/NewsletterSubscriber');
-const Notification = require('../models/Notification');
+const logActivity = require('../utils/logActivity');
+const { Parser } = require('json2csv');
 
 // Subscribe to newsletter
 const subscribeNewsletter = async (req, res) => {
@@ -9,8 +10,9 @@ const subscribeNewsletter = async (req, res) => {
         if (!errors.isEmpty()) {
             return res.status(400).json({
                 success: false,
+                data: {},
                 message: 'Validation failed',
-                errors: errors.array()
+                error: errors.array()
             });
         }
 
@@ -23,7 +25,9 @@ const subscribeNewsletter = async (req, res) => {
             if (existingSubscriber.isActive) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Email is already subscribed to newsletter'
+                    data: {},
+                    message: 'Email is already subscribed to newsletter',
+                    error: 'already_subscribed'
                 });
             } else {
                 // Reactivate subscription
@@ -36,23 +40,18 @@ const subscribeNewsletter = async (req, res) => {
                 existingSubscriber.unsubscribedAt = undefined;
                 await existingSubscriber.save();
 
-                // Create notification for admin
-                await Notification.create({
-                    title: 'Newsletter Re-subscription',
-                    message: `${email} has re-subscribed to newsletter`,
-                    type: 'newsletter_signup',
-                    priority: 'low',
-                    relatedData: {
-                        email,
-                        name,
-                        companyName
-                    }
+                await logActivity({
+                    type: 'newsletter_subscribe',
+                    details: { email, name, companyName, action: 'reactivated' },
+                    ipAddress: req.ip,
+                    userAgent: req.get('User-Agent')
                 });
 
                 return res.json({
                     success: true,
+                    data: { subscriberId: existingSubscriber._id },
                     message: 'Successfully re-subscribed to newsletter',
-                    data: { subscriberId: existingSubscriber._id }
+                    error: null
                 });
             }
         }
@@ -69,31 +68,27 @@ const subscribeNewsletter = async (req, res) => {
 
         await subscriber.save();
 
-        // Create notification for admin
-        await Notification.create({
-            title: 'New Newsletter Subscription',
-            message: `${email} has subscribed to newsletter`,
-            type: 'newsletter_signup',
-            priority: 'low',
-            relatedData: {
-                email,
-                name,
-                companyName,
-                city
-            }
+        await logActivity({
+            type: 'newsletter_subscribe',
+            details: { email, name, companyName, action: 'new_subscription' },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
         });
 
         res.status(201).json({
             success: true,
+            data: { subscriberId: subscriber._id },
             message: 'Successfully subscribed to newsletter',
-            data: { subscriberId: subscriber._id }
+            error: null
         });
 
     } catch (error) {
         console.error('Subscribe newsletter error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error'
+            data: {},
+            message: 'Server error',
+            error: error.message
         });
     }
 };
@@ -108,7 +103,9 @@ const unsubscribeNewsletter = async (req, res) => {
         if (!subscriber) {
             return res.status(404).json({
                 success: false,
-                message: 'Invalid unsubscribe token'
+                data: {},
+                message: 'Invalid unsubscribe token',
+                error: 'invalid_token'
             });
         }
 
@@ -116,21 +113,174 @@ const unsubscribeNewsletter = async (req, res) => {
         subscriber.unsubscribedAt = new Date();
         await subscriber.save();
 
+        await logActivity({
+            type: 'newsletter_unsubscribe',
+            details: { email: subscriber.email, action: 'unsubscribed' },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+
         res.json({
             success: true,
-            message: 'Successfully unsubscribed from newsletter'
+            data: {},
+            message: 'Successfully unsubscribed from newsletter',
+            error: null
         });
 
     } catch (error) {
         console.error('Unsubscribe newsletter error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error'
+            data: {},
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// Get newsletter subscribers (Admin only)
+const getNewsletterSubscribers = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+        const search = req.query.q || '';
+        const isActive = req.query.isActive;
+
+        let filter = {};
+
+        if (search) {
+            filter.$or = [
+                { email: new RegExp(search, 'i') },
+                { name: new RegExp(search, 'i') },
+                { companyName: new RegExp(search, 'i') }
+            ];
+        }
+
+        if (typeof isActive !== 'undefined') filter.isActive = isActive === 'true';
+
+        const [subscribers, total] = await Promise.all([
+            NewsletterSubscriber.find(filter)
+                .sort({ subscribedAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            NewsletterSubscriber.countDocuments(filter)
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                subscribers,
+                pagination: {
+                    current: page,
+                    pages: Math.ceil(total / limit),
+                    total,
+                    limit
+                }
+            },
+            message: 'Newsletter subscribers retrieved successfully',
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get newsletter subscribers error:', error);
+        res.status(500).json({
+            success: false,
+            data: {},
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// Update subscriber status (Admin only)
+const updateSubscriberStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isActive } = req.body;
+
+        const subscriber = await NewsletterSubscriber.findById(id);
+        if (!subscriber) {
+            return res.status(404).json({
+                success: false,
+                data: {},
+                message: 'Subscriber not found',
+                error: 'subscriber_not_found'
+            });
+        }
+
+        subscriber.isActive = isActive;
+        if (!isActive) {
+            subscriber.unsubscribedAt = new Date();
+        }
+        await subscriber.save();
+
+        await logActivity({
+            type: 'admin_change_subscriber_status',
+            adminId: req.user._id,
+            details: { email: subscriber.email, isActive },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+
+        res.json({
+            success: true,
+            data: { subscriber: { id: subscriber._id, email: subscriber.email, isActive: subscriber.isActive } },
+            message: `Subscriber ${isActive ? 'activated' : 'deactivated'} successfully`,
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Update subscriber status error:', error);
+        res.status(500).json({
+            success: false,
+            data: {},
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// Export newsletter subscribers to CSV (Admin only)
+const exportNewsletterSubscribers = async (req, res) => {
+    try {
+        const subscribers = await NewsletterSubscriber.find({});
+
+        const fields = [
+            'email',
+            'name',
+            'companyName',
+            'phoneNumber',
+            'city',
+            'source',
+            'isActive',
+            'subscribedAt',
+            'unsubscribedAt',
+            'emailCount'
+        ];
+
+        const parser = new Parser({ fields });
+        const csv = parser.parse(subscribers);
+
+        res.header('Content-Type', 'text/csv');
+        res.attachment('newsletter_subscribers.csv');
+        res.send(csv);
+
+    } catch (error) {
+        console.error('Export newsletter subscribers error:', error);
+        res.status(500).json({
+            success: false,
+            data: {},
+            message: 'Server error',
+            error: error.message
         });
     }
 };
 
 module.exports = {
     subscribeNewsletter,
-    unsubscribeNewsletter
+    unsubscribeNewsletter,
+    getNewsletterSubscribers,
+    updateSubscriberStatus,
+    exportNewsletterSubscribers
 };

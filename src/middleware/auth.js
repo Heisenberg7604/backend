@@ -3,22 +3,38 @@ const User = require('../models/User');
 
 const authMiddleware = async (req, res, next) => {
     try {
-        const token = req.header('Authorization')?.replace('Bearer ', '');
-
-        if (!token) {
+        const header = req.headers.authorization;
+        if (!header || !header.startsWith('Bearer ')) {
             return res.status(401).json({
                 success: false,
-                message: 'Access denied. No token provided.'
+                data: {},
+                message: 'Unauthorized',
+                error: 'No token provided'
             });
         }
 
+        const token = header.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-        req.user = decoded;
+
+        // Get user from database to check if still active
+        const user = await User.findById(decoded.id);
+        if (!user || user.isDeleted || !user.isActive) {
+            return res.status(401).json({
+                success: false,
+                data: {},
+                message: 'Unauthorized',
+                error: 'User inactive or deleted'
+            });
+        }
+
+        req.user = user;
         next();
     } catch (error) {
         res.status(401).json({
             success: false,
-            message: 'Invalid token.'
+            data: {},
+            message: 'Invalid token',
+            error: error.message
         });
     }
 };
@@ -47,49 +63,60 @@ const optionalAuthMiddleware = async (req, res, next) => {
     }
 };
 
+const requireRole = (role) => (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({
+            success: false,
+            data: {},
+            message: 'Unauthorized',
+            error: 'No user'
+        });
+    }
+
+    if (req.user.role !== role) {
+        return res.status(403).json({
+            success: false,
+            data: {},
+            message: 'Forbidden',
+            error: 'Insufficient role'
+        });
+    }
+
+    next();
+};
+
 const adminMiddleware = async (req, res, next) => {
     try {
         // Check if user is authenticated first
-        if (!req.user || !req.user.userId) {
+        if (!req.user) {
             return res.status(401).json({
                 success: false,
-                message: 'Access denied. Authentication required.'
+                data: {},
+                message: 'Access denied. Authentication required.',
+                error: 'No user'
             });
         }
 
-        // Get user from database
-        const user = await User.findById(req.user.userId);
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        // Check for special admin credentials
-        const isSpecialAdmin = (
-            user.email === 'admin@jpgroup.com' ||
-            user.email === 'darshan@jpgroup.com' ||
-            user.email === 'contact@jpgroup.com' ||
-            user.role === 'admin'
-        );
-
-        if (!isSpecialAdmin) {
+        // Check for admin role
+        if (req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
-                message: 'Access denied. Admin privileges required.'
+                data: {},
+                message: 'Access denied. Admin privileges required.',
+                error: 'Insufficient role'
             });
         }
 
         // Add user info to request for admin controllers
-        req.adminUser = user;
+        req.adminUser = req.user;
         next();
     } catch (error) {
         console.error('Admin middleware error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error'
+            data: {},
+            message: 'Server error',
+            error: error.message
         });
     }
 };
@@ -97,5 +124,6 @@ const adminMiddleware = async (req, res, next) => {
 module.exports = {
     authMiddleware,
     optionalAuthMiddleware,
-    adminMiddleware
+    adminMiddleware,
+    requireRole
 };

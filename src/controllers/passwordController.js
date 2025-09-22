@@ -1,9 +1,8 @@
 const crypto = require('crypto');
-const { Resend } = require('resend');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+const { sendPasswordResetEmail } = require('../services/emailService');
+const logActivity = require('../utils/logActivity');
 
 // Forgot password
 const forgotPassword = async (req, res) => {
@@ -12,8 +11,9 @@ const forgotPassword = async (req, res) => {
         if (!errors.isEmpty()) {
             return res.status(400).json({
                 success: false,
+                data: {},
                 message: 'Validation failed',
-                errors: errors.array()
+                error: errors.array()
             });
         }
 
@@ -36,52 +36,35 @@ const forgotPassword = async (req, res) => {
         user.passwordResetExpires = resetExpires;
         await user.save();
 
-        // Send email
+        // Send email using SMTP
         const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
         try {
-            await resend.emails.send({
-                from: process.env.FROM_EMAIL || 'noreply@jpgroup.industries',
-                to: [email],
-                subject: 'Password Reset Request - JP Group',
-                html: `
-          <div style="font-family: Arial, sans-serif; border: 2px dashed #000; padding: 20px; max-width: 600px; margin: auto;">
-            <!-- Logo -->
-            <div style="text-align: center; margin-bottom: 20px;">
-              <img src="https://jpel.in/static/media/footer-logo.6cd7aaadced76bd27f40.jpg" alt="JP Group Logo" style="max-width: 400px;">
-            </div>
-            
-            <h2 style="text-align: center; font-size: 24px; margin-bottom: 20px;">Password Reset Request</h2>
-            
-            <p style="margin-bottom: 15px;">Dear ${user.name},</p>
-            
-            <p style="margin-bottom: 15px;">You have requested to reset your password for your JP Group account.</p>
-            
-            <p style="margin-bottom: 15px;">Click the button below to reset your password:</p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset Password</a>
-            </div>
-            
-            <p style="margin-bottom: 15px;">Or copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #666; margin-bottom: 15px;">${resetUrl}</p>
-            
-            <p style="margin-bottom: 15px;"><strong>This link will expire in 10 minutes.</strong></p>
-            
-            <p style="margin-bottom: 15px;">If you didn't request this password reset, please ignore this email.</p>
-            
-            <p style="margin-bottom: 5px;">Regards,</p>
-            <p style="margin-bottom: 5px; font-weight: bold;">J P Extrusiontech Private Limited</p>
-            
-            <p style="margin-top: 30px; font-size: 12px; color: #666;">This is an auto generated email. PLEASE DO NOT REPLY directly to this email.</p>
-          </div>
-        `
+            const emailResult = await sendPasswordResetEmail({
+                to: email,
+                resetUrl: resetUrl,
+                userName: user.name
             });
 
-            res.json({
-                success: true,
-                message: 'If an account with that email exists, we have sent a password reset link.'
-            });
+            if (emailResult.success) {
+                // Log password reset request activity
+                await logActivity({
+                    type: 'password_reset_request',
+                    userId: user._id,
+                    details: { email: user.email },
+                    ipAddress: req.ip,
+                    userAgent: req.get('User-Agent')
+                });
+
+                res.json({
+                    success: true,
+                    data: {},
+                    message: 'If an account with that email exists, we have sent a password reset link.',
+                    error: null
+                });
+            } else {
+                throw new Error(emailResult.error);
+            }
 
         } catch (emailError) {
             console.error('Email sending error:', emailError);
@@ -93,7 +76,9 @@ const forgotPassword = async (req, res) => {
 
             res.status(500).json({
                 success: false,
-                message: 'Error sending email. Please try again later.'
+                data: {},
+                message: 'Error sending email. Please try again later.',
+                error: emailError.message
             });
         }
 
@@ -101,7 +86,9 @@ const forgotPassword = async (req, res) => {
         console.error('Forgot password error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error'
+            data: {},
+            message: 'Server error',
+            error: error.message
         });
     }
 };
@@ -113,8 +100,9 @@ const resetPassword = async (req, res) => {
         if (!errors.isEmpty()) {
             return res.status(400).json({
                 success: false,
+                data: {},
                 message: 'Validation failed',
-                errors: errors.array()
+                error: errors.array()
             });
         }
 
@@ -128,7 +116,9 @@ const resetPassword = async (req, res) => {
         if (!user) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid or expired reset token'
+                data: {},
+                message: 'Invalid or expired reset token',
+                error: 'invalid_token'
             });
         }
 
@@ -138,16 +128,29 @@ const resetPassword = async (req, res) => {
         user.passwordResetExpires = undefined;
         await user.save();
 
+        // Log password reset completion activity
+        await logActivity({
+            type: 'password_reset_complete',
+            userId: user._id,
+            details: { email: user.email },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+
         res.json({
             success: true,
-            message: 'Password has been reset successfully'
+            data: {},
+            message: 'Password has been reset successfully',
+            error: null
         });
 
     } catch (error) {
         console.error('Reset password error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error'
+            data: {},
+            message: 'Server error',
+            error: error.message
         });
     }
 };
@@ -165,7 +168,9 @@ const verifyResetToken = async (req, res) => {
         if (!user) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid or expired reset token'
+                data: {},
+                message: 'Invalid or expired reset token',
+                error: 'invalid_token'
             });
         }
 
@@ -178,7 +183,9 @@ const verifyResetToken = async (req, res) => {
         console.error('Verify reset token error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error'
+            data: {},
+            message: 'Server error',
+            error: error.message
         });
     }
 };

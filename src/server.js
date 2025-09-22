@@ -6,19 +6,9 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
-const server = createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:8081',
-        methods: ['GET', 'POST'],
-        credentials: true
-    }
-});
 
 // Trust proxy for rate limiting (required for Sevalla/Cloudflare)
 app.set('trust proxy', 1);
@@ -110,20 +100,27 @@ app.get('/', (req, res) => {
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.status(200).json({
-        status: 'OK',
+        success: true,
+        data: {
+            status: 'OK',
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString(),
+            environment: process.env.NODE_ENV
+        },
         message: 'JP App Backend is running',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV
+        error: null
     });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Error:', err.stack);
-    res.status(500).json({
+    const status = err.status || 500;
+    res.status(status).json({
         success: false,
-        message: 'Something went wrong!',
-        error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+        data: {},
+        message: err.message || 'Internal Server Error',
+        error: process.env.NODE_ENV === 'production' ? null : err.stack
     });
 });
 
@@ -131,32 +128,18 @@ app.use((err, req, res, next) => {
 app.use('*', (req, res) => {
     res.status(404).json({
         success: false,
-        message: 'Route not found'
+        data: {},
+        message: 'Route not found',
+        error: 'not_found'
     });
 });
-
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-    console.log('🔌 Admin connected:', socket.id);
-
-    // Join admin room
-    socket.join('admin');
-
-    socket.on('disconnect', () => {
-        console.log('🔌 Admin disconnected:', socket.id);
-    });
-});
-
-// Make io available to other modules
-app.set('io', io);
 
 const PORT = process.env.PORT || 5001;
 
-server.listen(PORT, () => {
+app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📱 Environment: ${process.env.NODE_ENV}`);
     console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
-    console.log(`🔌 Socket.IO server ready`);
 });
 
 module.exports = app;
