@@ -65,6 +65,12 @@ app.use(express.urlencoded({ extended: true }));
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
+} else {
+    // Production logging - log all requests
+    app.use((req, res, next) => {
+        console.log(`📥 ${req.method} ${req.url} - ${req.get('User-Agent')?.substring(0, 50)}...`);
+        next();
+    });
 }
 
 // MongoDB connection with optimized settings
@@ -89,14 +95,7 @@ if (process.env.MONGODB_URI) {
     console.log('⚠️  No MongoDB URI provided - server running without database');
 }
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/catalogue', require('./routes/catalogue'));
-app.use('/api/newsletter', require('./routes/newsletter'));
-app.use('/api/notifications', require('./routes/notifications'));
-
-// Serve frontend static files
+// Serve frontend static files FIRST
 const frontendPath = path.join(__dirname, '../frontend/dist');
 if (fs.existsSync(frontendPath)) {
     app.use(express.static(frontendPath));
@@ -105,30 +104,12 @@ if (fs.existsSync(frontendPath)) {
     console.log('⚠️  Frontend dist folder not found - serving API only');
 }
 
-// Handle React Router (return index.html for all non-API routes)
-app.get('*', (req, res) => {
-    // Don't serve index.html for API routes
-    if (req.path.startsWith('/api/')) {
-        return res.status(404).json({
-            success: false,
-            message: 'API route not found',
-            error: 'not_found'
-        });
-    }
-
-    // Check if frontend files exist
-    const indexPath = path.join(__dirname, '../frontend/dist/index.html');
-    if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-    } else {
-        res.status(404).json({
-            success: false,
-            message: 'Frontend not available - please deploy frontend separately',
-            error: 'frontend_not_found',
-            suggestion: 'Deploy frontend as separate Sevalla app or ensure frontend/dist exists'
-        });
-    }
-});
+// API Routes (after static files, before catch-all)
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/catalogue', require('./routes/catalogue'));
+app.use('/api/newsletter', require('./routes/newsletter'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Basic health check (no database dependency)
 app.get('/', (req, res) => {
@@ -197,9 +178,40 @@ app.get('/api/test', (req, res) => {
     });
 });
 
+// Handle React Router (return index.html for all non-API routes)
+app.get('*', (req, res) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({
+            success: false,
+            message: 'API route not found',
+            error: 'not_found'
+        });
+    }
+
+    // Check if frontend files exist
+    const indexPath = path.join(__dirname, '../frontend/dist/index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).json({
+            success: false,
+            message: 'Frontend not available - please deploy frontend separately',
+            error: 'frontend_not_found',
+            suggestion: 'Deploy frontend as separate Sevalla app or ensure frontend/dist exists'
+        });
+    }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error('Error:', err.stack);
+    console.error('🚨 Server Error:', {
+        message: err.message,
+        stack: err.stack,
+        url: req.url,
+        method: req.method,
+        timestamp: new Date().toISOString()
+    });
     const status = err.status || 500;
     res.status(status).json({
         success: false,
