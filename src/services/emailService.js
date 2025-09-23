@@ -1,37 +1,47 @@
 const nodemailer = require('nodemailer');
 const logActivity = require('../utils/logActivity');
 
-// Create Gmail SMTP transporter
-const createTransporter = () => {
-    return nodemailer.createTransport({
+// Create Gmail SMTP transporter with fallback
+const createTransporter = (usePort465 = true) => {
+    const config = {
         service: 'gmail',
         host: 'smtp.gmail.com',
-        port: 587,
-        secure: false, // true for 465, false for other ports
         auth: {
             user: 'media.jpel@gmail.com',
             pass: process.env.GMAIL_APP_PASSWORD
         },
         tls: {
-            rejectUnauthorized: false,
-            ciphers: 'SSLv3'
+            rejectUnauthorized: false
         },
-        connectionTimeout: 60000, // 60 seconds
-        greetingTimeout: 30000,   // 30 seconds
-        socketTimeout: 60000,     // 60 seconds
-        pool: true,
-        maxConnections: 5,
-        maxMessages: 100,
-        rateDelta: 1000,
-        rateLimit: 5
-    });
+        connectionTimeout: 30000, // 30 seconds
+        greetingTimeout: 15000,   // 15 seconds
+        socketTimeout: 30000,     // 30 seconds
+        pool: false, // Disable pooling for better reliability
+        maxConnections: 1,
+        maxMessages: 1
+    };
+
+    if (usePort465) {
+        // Try port 465 (SSL) first
+        config.port = 465;
+        config.secure = true;
+    } else {
+        // Fallback to port 587 (TLS)
+        config.port = 587;
+        config.secure = false;
+    }
+
+    return nodemailer.createTransport(config);
 };
 
-// Send email function with retry logic
+// Send email function with retry logic and port fallback
 const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com' }, retries = 3) => {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-            const transporter = createTransporter();
+            // Try port 465 first, then fallback to 587
+            const usePort465 = attempt <= 2;
+            const transporter = createTransporter(usePort465);
+            const portInfo = usePort465 ? '465 (SSL)' : '587 (TLS)';
 
             const mailOptions = {
                 from: from,
@@ -41,7 +51,7 @@ const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com
                 text: text
             };
 
-            console.log(`📧 Attempting to send email (attempt ${attempt}/${retries})...`);
+            console.log(`📧 Attempting to send email (attempt ${attempt}/${retries}) on port ${portInfo}...`);
             const result = await transporter.sendMail(mailOptions);
             console.log('✅ Email sent successfully:', result.messageId);
 
