@@ -13,30 +13,55 @@ const createTransporter = () => {
             pass: process.env.GMAIL_APP_PASSWORD
         },
         tls: {
-            rejectUnauthorized: false
-        }
+            rejectUnauthorized: false,
+            ciphers: 'SSLv3'
+        },
+        connectionTimeout: 60000, // 60 seconds
+        greetingTimeout: 30000,   // 30 seconds
+        socketTimeout: 60000,     // 60 seconds
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100,
+        rateDelta: 1000,
+        rateLimit: 5
     });
 };
 
-// Send email function
-const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com' }) => {
-    try {
-        const transporter = createTransporter();
+// Send email function with retry logic
+const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com' }, retries = 3) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const transporter = createTransporter();
 
-        const mailOptions = {
-            from: from,
-            to: Array.isArray(to) ? to.join(', ') : to,
-            subject: subject,
-            html: html,
-            text: text
-        };
+            const mailOptions = {
+                from: from,
+                to: Array.isArray(to) ? to.join(', ') : to,
+                subject: subject,
+                html: html,
+                text: text
+            };
 
-        const result = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', result.messageId);
-        return { success: true, messageId: result.messageId };
-    } catch (error) {
-        console.error('Email sending error:', error);
-        return { success: false, error: error.message };
+            console.log(`📧 Attempting to send email (attempt ${attempt}/${retries})...`);
+            const result = await transporter.sendMail(mailOptions);
+            console.log('✅ Email sent successfully:', result.messageId);
+
+            // Close the transporter
+            transporter.close();
+
+            return { success: true, messageId: result.messageId };
+        } catch (error) {
+            console.error(`❌ Email sending error (attempt ${attempt}/${retries}):`, error.message);
+
+            if (attempt === retries) {
+                console.error('❌ All email attempts failed');
+                return { success: false, error: error.message };
+            }
+
+            // Wait before retry (exponential backoff)
+            const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+            console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
     }
 };
 
