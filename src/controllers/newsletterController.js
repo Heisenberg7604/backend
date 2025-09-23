@@ -75,6 +75,22 @@ const subscribeNewsletter = async (req, res) => {
             userAgent: req.get('User-Agent')
         });
 
+        // Send admin notification for newsletter subscription
+        const { sendNotificationEmail } = require('../services/emailService');
+        await sendNotificationEmail({
+            subject: 'New Newsletter Subscription',
+            message: `${name || 'Anonymous'} has subscribed to the newsletter`,
+            type: 'newsletter_subscription',
+            data: {
+                userName: name,
+                userEmail: email,
+                companyName: companyName,
+                city: city,
+                ipAddress: req.ip,
+                timestamp: new Date()
+            }
+        });
+
         res.status(201).json({
             success: true,
             data: { subscriberId: subscriber._id },

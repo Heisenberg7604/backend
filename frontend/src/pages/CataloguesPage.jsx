@@ -46,6 +46,30 @@ export default function CataloguesPage() {
     }
   }
 
+  const handleDownload = async (catalogueId, fileName) => {
+    try {
+      // Create download link
+      const downloadUrl = `${import.meta.env.VITE_API_URL}/catalogue/${catalogueId}/download`
+
+      // Create temporary link element
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileName
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      // Refresh data after download to update counts
+      setTimeout(() => {
+        fetchData()
+      }, 1000) // Wait 1 second for backend to process
+
+    } catch (error) {
+      console.error('Error downloading catalogue:', error)
+    }
+  }
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
@@ -75,21 +99,19 @@ export default function CataloguesPage() {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('catalogues')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'catalogues'
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'catalogues'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             Catalogues ({catalogues.length})
           </button>
           <button
             onClick={() => setActiveTab('downloads')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'downloads'
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'downloads'
                 ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             Download History ({downloads.length})
           </button>
@@ -161,6 +183,13 @@ export default function CataloguesPage() {
                         {new Date(catalogue.uploadedAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button
+                          onClick={() => handleDownload(catalogue._id, catalogue.originalName)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Download catalogue"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
                         <button className="text-primary-600 hover:text-primary-900">
                           <Edit className="h-4 w-4" />
                         </button>
@@ -183,6 +212,18 @@ export default function CataloguesPage() {
       {/* Downloads Tab */}
       {activeTab === 'downloads' && (
         <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">Download History</h3>
+              <button
+                onClick={fetchData}
+                className="bg-primary-600 text-white px-3 py-1 rounded-md hover:bg-primary-700 text-sm flex items-center"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Refresh
+              </button>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">

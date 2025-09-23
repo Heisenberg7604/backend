@@ -57,20 +57,7 @@ const register = async (req, res) => {
             userAgent: req.get('User-Agent')
         });
 
-        // Send notification email to admins
-        await sendNotificationEmail({
-            subject: 'New User Registration',
-            message: `${name} from ${companyName} has registered on the JP App`,
-            type: 'user_registration',
-            data: {
-                userName: name,
-                userEmail: email,
-                companyName: companyName,
-                city: city,
-                ipAddress: req.ip,
-                timestamp: new Date()
-            }
-        });
+        // Note: Admin notifications for user registration removed as per requirements
 
         // Create notification for admin
         const notification = await Notification.create({
@@ -187,21 +174,7 @@ const login = async (req, res) => {
             userAgent: req.get('User-Agent')
         });
 
-        // Send notification email for admin logins
-        if (user.role === 'admin') {
-            await sendNotificationEmail({
-                subject: 'Admin Login',
-                message: `${user.name} (${user.email}) has logged into the admin panel`,
-                type: 'admin_login',
-                data: {
-                    userName: user.name,
-                    userEmail: user.email,
-                    companyName: user.companyName,
-                    ipAddress: req.ip,
-                    timestamp: new Date()
-                }
-            });
-        }
+        // Note: Admin login notifications removed as per requirements
 
         // Generate token
         const token = generateToken(user._id, user.role);

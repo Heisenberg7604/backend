@@ -290,6 +290,21 @@ const downloadCatalogue = async (req, res) => {
             });
         }
 
+        // Send admin notification for catalogue download
+        const { sendNotificationEmail } = require('../services/emailService');
+        await sendNotificationEmail({
+            subject: 'Catalogue Downloaded',
+            message: `${catalogue.originalName} has been downloaded`,
+            type: 'catalogue_download',
+            data: {
+                fileName: catalogue.originalName,
+                fileSize: catalogue.fileSize,
+                downloadCount: catalogue.downloadCount,
+                ipAddress: req.ip,
+                timestamp: new Date()
+            }
+        });
+
         // Set appropriate headers
         res.setHeader('Content-Type', catalogue.mimeType);
         res.setHeader('Content-Disposition', `attachment; filename="${catalogue.originalName}"`);
