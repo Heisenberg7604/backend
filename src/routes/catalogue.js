@@ -6,11 +6,13 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { catalogueValidation } = require('../middleware/validation');
 const {
     getCatalogues,
+    getProducts,
     getCatalogueById,
     uploadCatalogue,
     updateCatalogue,
     deleteCatalogue,
     downloadCatalogue,
+    downloadProductCatalogues,
     trackDownload
 } = require('../controllers/catalogueController');
 
@@ -49,8 +51,10 @@ const upload = multer({
 
 // Public routes (no authentication required)
 router.get('/', getCatalogues);
+router.get('/products', getProducts);
 router.get('/:id', getCatalogueById);
 router.get('/:id/download', downloadCatalogue);
+router.get('/product/:productId/download', downloadProductCatalogues);
 
 // Admin routes (require authentication and admin privileges)
 router.use(authMiddleware);

@@ -48,8 +48,12 @@ export default function CataloguesPage() {
 
   const handleDownload = async (catalogueId, fileName) => {
     try {
+      console.log('🔥 FRONTEND DOWNLOAD CALLED:', { catalogueId, fileName })
+
       // Create download link
       const downloadUrl = `${import.meta.env.VITE_API_URL}/catalogue/${catalogueId}/download`
+
+      console.log('🔥 DOWNLOAD URL:', downloadUrl)
 
       // Create temporary link element
       const link = document.createElement('a')
@@ -62,6 +66,7 @@ export default function CataloguesPage() {
 
       // Refresh data after download to update counts
       setTimeout(() => {
+        console.log('🔥 REFRESHING DATA AFTER DOWNLOAD')
         fetchData()
       }, 1000) // Wait 1 second for backend to process
 
@@ -100,8 +105,8 @@ export default function CataloguesPage() {
           <button
             onClick={() => setActiveTab('catalogues')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'catalogues'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-primary-500 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
             Catalogues ({catalogues.length})
@@ -109,8 +114,8 @@ export default function CataloguesPage() {
           <button
             onClick={() => setActiveTab('downloads')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'downloads'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-primary-500 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
             Download History ({downloads.length})

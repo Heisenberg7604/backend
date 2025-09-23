@@ -239,11 +239,173 @@ const deleteCatalogue = async (req, res) => {
     }
 };
 
-// Download catalogue with tracking
+// Product to catalogues mapping (like jpel2)
+const PRODUCT_CATALOGUES = {
+    'TapeExtrusion': ['TapeExtrusion.pdf'],
+    'CircularLoom': [
+        '4 Shuttle Circular Loom.pdf',
+        '6 Shuttle Circular Loom.pdf',
+        '8,10 & 12 Shuttle Circular Loom.pdf',
+        'Inside Lamination.pdf'
+    ],
+    'ExtrusionCoating': [
+        'Extrusion Coating Line.pdf',
+        'Extrusion Coatling Line - POLYCOAT.pdf',
+        'Extrusion Coating - Leno Lamination.pdf'
+    ],
+    'PrintingMachine': ['Flexo Printing Machine.pdf'],
+    'BagConversion': ['Converting machine.pdf'],
+    'WovenSack': ['Plastic Washing Cleaning & Recycling Line.pdf'],
+    'PET': ['PET Washing Line.pdf'],
+    'Monofilament': ['Monofilament Plant.pdf'],
+    'BoxStrapping': ['PP and PET Box Strapping Line.pdf'],
+    'SheetExtrusion': ['Sheet Extrusion Line.pdf'],
+    'CastLine': ['Cast Film Line.pdf'],
+    'Flexible': ['Extrusion Coating Line for Flexible Packaging.pdf']
+};
+
+// Get all products with their catalogues
+const getProducts = async (req, res) => {
+    try {
+        const products = Object.keys(PRODUCT_CATALOGUES).map(productId => ({
+            id: productId,
+            name: productId.replace(/([A-Z])/g, ' $1').trim(),
+            catalogueCount: PRODUCT_CATALOGUES[productId].length,
+            catalogues: PRODUCT_CATALOGUES[productId]
+        }));
+
+        res.json({
+            success: true,
+            data: { products },
+            message: 'Products retrieved successfully',
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get products error:', error);
+        res.status(500).json({
+            success: false,
+            data: {},
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// Download multiple catalogues for a product
+const downloadProductCatalogues = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const userId = req.user ? req.user._id : null;
+
+        console.log('🔥 DOWNLOAD PRODUCT CATALOGUES CALLED:', { productId, userId, method: req.method });
+
+        // Get catalogues for this product
+        const catalogueFileNames = PRODUCT_CATALOGUES[productId];
+        if (!catalogueFileNames) {
+            return res.status(404).json({
+                success: false,
+                data: {},
+                message: 'Product not found',
+                error: 'product_not_found'
+            });
+        }
+
+        // Find all catalogues for this product
+        const catalogues = await Catalogue.find({
+            originalName: { $in: catalogueFileNames },
+            isActive: true
+        });
+
+        if (catalogues.length === 0) {
+            return res.status(404).json({
+                success: false,
+                data: {},
+                message: 'No catalogues found for this product',
+                error: 'no_catalogues_found'
+            });
+        }
+
+        // Create ZIP file with all catalogues
+        const archiver = require('archiver');
+        const zip = archiver('zip', { zlib: { level: 9 } });
+
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${productId}_catalogues.zip"`);
+
+        zip.pipe(res);
+
+        // Add each catalogue to the ZIP
+        for (const catalogue of catalogues) {
+            if (fs.existsSync(catalogue.filePath)) {
+                zip.file(catalogue.filePath, { name: catalogue.originalName });
+
+                // Update download count
+                catalogue.downloadCount += 1;
+                await catalogue.save();
+
+                // Log download
+                await Download.create({
+                    userId,
+                    catalogueId: catalogue._id,
+                    fileName: catalogue.originalName,
+                    fileSize: catalogue.fileSize,
+                    ipAddress: req.ip,
+                    userAgent: req.get('User-Agent')
+                });
+            }
+        }
+
+        // Log activity if user is authenticated
+        if (userId) {
+            await logActivity({
+                type: 'product_catalogues_download',
+                userId,
+                details: {
+                    productId,
+                    catalogueCount: catalogues.length,
+                    catalogueNames: catalogues.map(c => c.originalName)
+                },
+                ipAddress: req.ip,
+                userAgent: req.get('User-Agent')
+            });
+        }
+
+        // Send admin notification for product catalogue download
+        const { sendNotificationEmail } = require('../services/emailService');
+        await sendNotificationEmail({
+            subject: 'Product Catalogues Downloaded',
+            message: `${productId} catalogues (${catalogues.length} files) have been downloaded`,
+            type: 'product_catalogues_download',
+            data: {
+                productId,
+                catalogueCount: catalogues.length,
+                catalogueNames: catalogues.map(c => c.originalName),
+                ipAddress: req.ip,
+                timestamp: new Date()
+            }
+        });
+
+        await zip.finalize();
+
+    } catch (error) {
+        console.error('Download product catalogues error:', error);
+        res.status(500).json({
+            success: false,
+            data: {},
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// Download single catalogue with tracking
 const downloadCatalogue = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user ? req.user._id : null;
+
+        console.log('🔥 DOWNLOAD CATALOGUE CALLED:', { id, userId, method: req.method });
 
         const catalogue = await Catalogue.findById(id);
         if (!catalogue || !catalogue.isActive) {
@@ -328,6 +490,7 @@ const downloadCatalogue = async (req, res) => {
 // Legacy track download function
 const trackDownload = async (req, res) => {
     try {
+        console.log('🔥 LEGACY TRACK DOWNLOAD CALLED:', req.body);
         const { productId, productTitle, catalogueUrls, downloadedAt } = req.body;
         const userId = req.user?.userId; // Optional - can be anonymous
         const userAgent = req.get('User-Agent');
@@ -385,10 +548,12 @@ const trackDownload = async (req, res) => {
 
 module.exports = {
     getCatalogues,
+    getProducts,
     getCatalogueById,
     uploadCatalogue,
     updateCatalogue,
     deleteCatalogue,
     downloadCatalogue,
+    downloadProductCatalogues,
     trackDownload
 };
