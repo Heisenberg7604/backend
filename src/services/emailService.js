@@ -1,15 +1,16 @@
 const nodemailer = require('nodemailer');
 const logActivity = require('../utils/logActivity');
 
-// Create SMTP transporter
+// Create Gmail SMTP transporter
 const createTransporter = () => {
     return nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: process.env.SMTP_PORT || 587,
+        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
         secure: false, // true for 465, false for other ports
         auth: {
-            user: process.env.SMTP_USER || 'media@jpel.in',
-            pass: process.env.SMTP_PASS
+            user: 'media.jpel@gmail.com',
+            pass: process.env.GMAIL_APP_PASSWORD
         },
         tls: {
             rejectUnauthorized: false
@@ -18,7 +19,7 @@ const createTransporter = () => {
 };
 
 // Send email function
-const sendEmail = async ({ to, subject, html, text, from = process.env.SMTP_FROM || 'media@jpel.in' }) => {
+const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com' }) => {
     try {
         const transporter = createTransporter();
 
@@ -118,7 +119,7 @@ const sendPasswordResetEmail = async ({ to, resetUrl, userName }) => {
         to: to,
         subject: 'Password Reset Request - JP Group',
         html: html,
-        from: 'media@jpel.in'
+        from: 'media.jpel@gmail.com'
     });
 };
 

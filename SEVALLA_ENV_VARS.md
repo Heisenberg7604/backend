@@ -48,13 +48,9 @@ MAX_FILE_SIZE=10485760
 UPLOAD_PATH=uploads
 
 # ===========================================
-# EMAIL CONFIGURATION
+# EMAIL CONFIGURATION (GMAIL)
 # ===========================================
-SMTP_HOST=webmail.jpel.in
-SMTP_PORT=587
-SMTP_USER=media@jpel.in
-SMTP_PASS=your_smtp_password_here
-SMTP_FROM=media@jpel.in
+GMAIL_APP_PASSWORD=your_gmail_app_password_here
 
 # ===========================================
 # ADMIN NOTIFICATION EMAILS
