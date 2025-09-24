@@ -7,6 +7,8 @@ export default function CataloguesPage() {
   const [downloads, setDownloads] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('catalogues')
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -43,6 +45,34 @@ export default function CataloguesPage() {
       } catch (error) {
         console.error('Error deleting catalogue:', error)
       }
+    }
+  }
+
+  const handleUpload = async (formData) => {
+    setUploading(true)
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/catalogue/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setShowUploadModal(false)
+        fetchData() // Refresh the list
+        alert('Catalogue uploaded successfully!')
+      } else {
+        alert(`Upload failed: ${result.message}`)
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Upload failed. Please try again.')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -115,7 +145,10 @@ export default function CataloguesPage() {
             Manage catalogue files and track downloads
           </p>
         </div>
-        <button className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center">
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center"
+        >
           <Upload className="h-4 w-4 mr-2" />
           Upload Catalogue
         </button>
@@ -314,6 +347,77 @@ export default function CataloguesPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Catalogue</h3>
+
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.target)
+                handleUpload(formData)
+              }}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select PDF File
+                  </label>
+                  <input
+                    type="file"
+                    name="catalogue"
+                    accept=".pdf"
+                    required
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    name="description"
+                    rows="3"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Enter catalogue description..."
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    name="category"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., technical, brochure"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {uploading ? 'Uploading...' : 'Upload'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
