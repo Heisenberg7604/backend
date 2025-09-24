@@ -264,6 +264,23 @@ const PRODUCT_CATALOGUES = {
     'Flexible': ['Extrusion Coating Line for Flexible Packaging.pdf']
 };
 
+// Mobile app product ID mapping (numeric IDs to product names)
+const MOBILE_PRODUCT_MAPPING = {
+    '1': 'TapeExtrusion',
+    '2': 'CircularLoom', 
+    '3': 'CircularLoom',
+    '4': 'ExtrusionCoating',
+    '5': 'PrintingMachine',
+    '6': 'BagConversion',
+    '7': 'WovenSack',        // Recycling Lines
+    '8': 'PET',
+    '9': 'Monofilament',
+    '10': 'BoxStrapping',
+    '11': 'SheetExtrusion',
+    '12': 'CastLine',
+    '13': 'Flexible'
+};
+
 // Get all products with their catalogues
 const getProducts = async (req, res) => {
     try {
@@ -300,9 +317,17 @@ const downloadProductCatalogues = async (req, res) => {
 
         console.log('🔥 DOWNLOAD PRODUCT CATALOGUES CALLED:', { productId, userId, method: req.method });
 
+        // Handle both numeric (mobile app) and string (web) product IDs
+        let actualProductId = productId;
+        if (MOBILE_PRODUCT_MAPPING[productId]) {
+            actualProductId = MOBILE_PRODUCT_MAPPING[productId];
+            console.log('📱 Mobile app product ID mapped:', productId, '->', actualProductId);
+        }
+
         // Get catalogues for this product
-        const catalogueFileNames = PRODUCT_CATALOGUES[productId];
+        const catalogueFileNames = PRODUCT_CATALOGUES[actualProductId];
         if (!catalogueFileNames) {
+            console.log('❌ Product not found:', { productId, actualProductId });
             return res.status(404).json({
                 success: false,
                 data: {},
@@ -362,7 +387,8 @@ const downloadProductCatalogues = async (req, res) => {
                 type: 'product_catalogues_download',
                 userId,
                 details: {
-                    productId,
+                    productId: actualProductId,
+                    mobileProductId: productId,
                     catalogueCount: catalogues.length,
                     catalogueNames: catalogues.map(c => c.originalName)
                 },
@@ -375,10 +401,11 @@ const downloadProductCatalogues = async (req, res) => {
         const { sendNotificationEmail } = require('../services/emailService');
         await sendNotificationEmail({
             subject: 'Product Catalogues Downloaded',
-            message: `${productId} catalogues (${catalogues.length} files) have been downloaded`,
+            message: `${actualProductId} catalogues (${catalogues.length} files) have been downloaded${productId !== actualProductId ? ` (Mobile ID: ${productId})` : ''}`,
             type: 'product_catalogues_download',
             data: {
-                productId,
+                productId: actualProductId,
+                mobileProductId: productId,
                 catalogueCount: catalogues.length,
                 catalogueNames: catalogues.map(c => c.originalName),
                 ipAddress: req.ip,
