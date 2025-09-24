@@ -54,7 +54,7 @@ export default function CataloguesPage() {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/catalogue/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
         },
         body: formData
       })
@@ -90,7 +90,7 @@ export default function CataloguesPage() {
         method: 'GET',
         headers: {
           // Only include auth token if user is logged in
-          ...(localStorage.getItem('token') && { 'Authorization': `Bearer ${localStorage.getItem('token')}` })
+          ...(localStorage.getItem('admin_token') && { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` })
         }
       })
 
