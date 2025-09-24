@@ -405,10 +405,11 @@ const downloadCatalogue = async (req, res) => {
         const { id } = req.params;
         const userId = req.user ? req.user._id : null;
 
-        console.log('🔥 DOWNLOAD CATALOGUE CALLED:', { id, userId, method: req.method });
+        console.log('🔥 DOWNLOAD CATALOGUE CALLED:', { id, userId, method: req.method, ip: req.ip });
 
         const catalogue = await Catalogue.findById(id);
         if (!catalogue || !catalogue.isActive) {
+            console.log('❌ Catalogue not found or inactive:', id);
             return res.status(404).json({
                 success: false,
                 data: {},
@@ -419,6 +420,7 @@ const downloadCatalogue = async (req, res) => {
 
         // Check if file exists
         if (!fs.existsSync(catalogue.filePath)) {
+            console.log('❌ File not found on server:', catalogue.filePath);
             return res.status(404).json({
                 success: false,
                 data: {},
@@ -427,45 +429,71 @@ const downloadCatalogue = async (req, res) => {
             });
         }
 
+        console.log('✅ File found, proceeding with download tracking');
+
         // Log download
-        await Download.create({
-            userId,
-            catalogueId: catalogue._id,
-            fileName: catalogue.originalName,
-            fileSize: catalogue.fileSize,
-            ipAddress: req.ip,
-            userAgent: req.get('User-Agent')
-        });
-
-        // Update download count
-        catalogue.downloadCount += 1;
-        await catalogue.save();
-
-        // Log activity if user is authenticated
-        if (userId) {
-            await logActivity({
-                type: 'catalogue_download',
+        try {
+            const downloadRecord = await Download.create({
                 userId,
-                details: { fileName: catalogue.originalName, catalogueId: catalogue._id },
+                catalogueId: catalogue._id,
+                fileName: catalogue.originalName,
+                fileSize: catalogue.fileSize,
                 ipAddress: req.ip,
                 userAgent: req.get('User-Agent')
             });
+            console.log('✅ Download record created:', downloadRecord._id);
+        } catch (downloadError) {
+            console.error('❌ Error creating download record:', downloadError);
+            // Continue with download even if tracking fails
+        }
+
+        // Update download count
+        try {
+            catalogue.downloadCount += 1;
+            await catalogue.save();
+            console.log('✅ Download count updated:', catalogue.downloadCount);
+        } catch (countError) {
+            console.error('❌ Error updating download count:', countError);
+            // Continue with download even if count update fails
+        }
+
+        // Log activity if user is authenticated
+        if (userId) {
+            try {
+                await logActivity({
+                    type: 'catalogue_download',
+                    userId,
+                    details: { fileName: catalogue.originalName, catalogueId: catalogue._id },
+                    ipAddress: req.ip,
+                    userAgent: req.get('User-Agent')
+                });
+                console.log('✅ Activity logged for user:', userId);
+            } catch (activityError) {
+                console.error('❌ Error logging activity:', activityError);
+            }
         }
 
         // Send admin notification for catalogue download
-        const { sendNotificationEmail } = require('../services/emailService');
-        await sendNotificationEmail({
-            subject: 'Catalogue Downloaded',
-            message: `${catalogue.originalName} has been downloaded`,
-            type: 'catalogue_download',
-            data: {
-                fileName: catalogue.originalName,
-                fileSize: catalogue.fileSize,
-                downloadCount: catalogue.downloadCount,
-                ipAddress: req.ip,
-                timestamp: new Date()
-            }
-        });
+        try {
+            const { sendNotificationEmail } = require('../services/emailService');
+            await sendNotificationEmail({
+                subject: 'Catalogue Downloaded',
+                message: `${catalogue.originalName} has been downloaded`,
+                type: 'catalogue_download',
+                data: {
+                    fileName: catalogue.originalName,
+                    fileSize: catalogue.fileSize,
+                    downloadCount: catalogue.downloadCount,
+                    ipAddress: req.ip,
+                    timestamp: new Date()
+                }
+            });
+            console.log('✅ Admin notification sent');
+        } catch (notificationError) {
+            console.error('❌ Error sending notification:', notificationError);
+        }
+
+        console.log('📁 Starting file stream for:', catalogue.originalName);
 
         // Set appropriate headers
         res.setHeader('Content-Type', catalogue.mimeType);
@@ -476,14 +504,32 @@ const downloadCatalogue = async (req, res) => {
         const fileStream = fs.createReadStream(catalogue.filePath);
         fileStream.pipe(res);
 
-    } catch (error) {
-        console.error('Download catalogue error:', error);
-        res.status(500).json({
-            success: false,
-            data: {},
-            message: 'Server error',
-            error: error.message
+        fileStream.on('error', (streamError) => {
+            console.error('❌ File stream error:', streamError);
+            if (!res.headersSent) {
+                res.status(500).json({
+                    success: false,
+                    data: {},
+                    message: 'Error streaming file',
+                    error: streamError.message
+                });
+            }
         });
+
+        fileStream.on('end', () => {
+            console.log('✅ File stream completed successfully');
+        });
+
+    } catch (error) {
+        console.error('❌ Download catalogue error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                data: {},
+                message: 'Server error',
+                error: error.message
+            });
+        }
     }
 };
 

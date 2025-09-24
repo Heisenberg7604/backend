@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const downloadSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
     catalogueId: { type: mongoose.Schema.Types.ObjectId, ref: 'Catalogue', required: true },
     fileName: { type: String, required: true },
     fileSize: { type: Number },

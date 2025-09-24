@@ -50,19 +50,38 @@ export default function CataloguesPage() {
     try {
       console.log('🔥 FRONTEND DOWNLOAD CALLED:', { catalogueId, fileName })
 
-      // Create download link
+      // Use fetch to ensure backend tracking executes properly
       const downloadUrl = `${import.meta.env.VITE_API_URL}/catalogue/${catalogueId}/download`
 
       console.log('🔥 DOWNLOAD URL:', downloadUrl)
 
-      // Create temporary link element
+      // Fetch the file with proper headers
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          // Only include auth token if user is logged in
+          ...(localStorage.getItem('token') && { 'Authorization': `Bearer ${localStorage.getItem('token')}` })
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`)
+      }
+
+      // Get the blob data
+      const blob = await response.blob()
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = downloadUrl
+      link.href = url
       link.download = fileName
-      link.target = '_blank'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(url)
 
       // Refresh data after download to update counts
       setTimeout(() => {
@@ -72,6 +91,9 @@ export default function CataloguesPage() {
 
     } catch (error) {
       console.error('Error downloading catalogue:', error)
+      // Fallback to direct link if fetch fails
+      const downloadUrl = `${import.meta.env.VITE_API_URL}/catalogue/${catalogueId}/download`
+      window.open(downloadUrl, '_blank')
     }
   }
 
