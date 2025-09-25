@@ -3,17 +3,27 @@ const logActivity = require('../utils/logActivity');
 const fs = require('fs');
 const path = require('path');
 
-// Create Gmail SMTP transporter (simplified like jpel2)
+// Create Gmail SMTP transporter (matching jeil2 working configuration)
 const createTransporter = () => {
-    if (!process.env.GMAIL_APP_PASSWORD) {
-        throw new Error('GMAIL_APP_PASSWORD environment variable is not set');
-    }
-
     return nodemailer.createTransport({
-        service: 'Gmail',
+        host: 'smtp.gmail.com', // Gmail SMTP host
+        port: 587, // Gmail SMTP port
+        secure: false, // true for 465, false for other ports
         auth: {
-            user: 'media.jpel@gmail.com',
-            pass: process.env.GMAIL_APP_PASSWORD
+            user: 'media.jpel@gmail.com', // Gmail address
+            pass: process.env.GMAIL_APP_PASSWORD || 'tqda zbxi cqua jgri' // Gmail app password
+        },
+        // Add timeout and connection settings for better performance
+        connectionTimeout: 120000, // 120 seconds for large attachments
+        greetingTimeout: 30000,   // 30 seconds
+        socketTimeout: 120000,     // 120 seconds for large attachments
+        pool: true,               // Use connection pooling
+        maxConnections: 5,        // Maximum number of connections
+        maxMessages: 100,        // Maximum messages per connection
+        rateLimit: 5,             // Reduced rate limit for large attachments
+        // Additional settings for large attachments
+        tls: {
+            rejectUnauthorized: false
         }
     });
 };
@@ -237,3 +247,13 @@ module.exports = {
     sendPasswordResetEmail,
     sendCatalogueEmail
 };
+
+// Verify transporter on startup (like jeil2)
+const testTransporter = createTransporter();
+testTransporter.verify((error) => {
+    if (error) {
+        console.error('❌ SMTP transporter verification failed:', error);
+    } else {
+        console.log('✅ SMTP transporter is ready to send emails');
+    }
+});
