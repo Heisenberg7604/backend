@@ -5,6 +5,10 @@ const path = require('path');
 
 // Create Gmail SMTP transporter (simplified like jpel2)
 const createTransporter = () => {
+    if (!process.env.GMAIL_APP_PASSWORD) {
+        throw new Error('GMAIL_APP_PASSWORD environment variable is not set');
+    }
+
     return nodemailer.createTransport({
         service: 'Gmail',
         auth: {
@@ -34,7 +38,18 @@ const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com
         return { success: true, messageId: result.messageId };
     } catch (error) {
         console.error('❌ Email sending error:', error);
-        return { success: false, error: error.message };
+
+        // Provide more specific error messages
+        let errorMessage = error.message;
+        if (error.code === 'EAUTH') {
+            errorMessage = 'Email authentication failed. Please check Gmail app password.';
+        } else if (error.code === 'ECONNECTION') {
+            errorMessage = 'Failed to connect to email server.';
+        } else if (error.code === 'ETIMEDOUT') {
+            errorMessage = 'Email server connection timed out.';
+        }
+
+        return { success: false, error: errorMessage };
     }
 };
 
@@ -201,7 +216,18 @@ const sendCatalogueEmail = async ({ to, productTitle, catalogues, userName, user
         return { success: true, messageId: result.messageId };
     } catch (error) {
         console.error('❌ Catalogue email sending error:', error);
-        return { success: false, error: error.message };
+
+        // Provide more specific error messages
+        let errorMessage = error.message;
+        if (error.code === 'EAUTH') {
+            errorMessage = 'Email authentication failed. Please check Gmail app password.';
+        } else if (error.code === 'ECONNECTION') {
+            errorMessage = 'Failed to connect to email server.';
+        } else if (error.code === 'ETIMEDOUT') {
+            errorMessage = 'Email server connection timed out.';
+        }
+
+        return { success: false, error: errorMessage };
     }
 };
 
