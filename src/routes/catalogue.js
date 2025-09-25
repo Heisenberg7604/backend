@@ -13,6 +13,7 @@ const {
     deleteCatalogue,
     downloadCatalogue,
     downloadProductCatalogues,
+    requestCataloguesByEmail,
     trackDownload
 } = require('../controllers/catalogueController');
 
@@ -54,9 +55,12 @@ router.get('/', getCatalogues);
 router.get('/products', getProducts);
 router.get('/:id', getCatalogueById);
 
-// Download routes with optional authentication (to track logged-in users)
-router.get('/:id/download', optionalAuthMiddleware, downloadCatalogue);
-router.get('/product/:productId/download', optionalAuthMiddleware, downloadProductCatalogues);
+// Download routes with required authentication (to ensure user tracking)
+router.get('/:id/download', authMiddleware, downloadCatalogue);
+router.get('/product/:productId/download', authMiddleware, downloadProductCatalogues);
+
+// Email request route (optional authentication - works for both logged-in and guest users)
+router.post('/request-email', optionalAuthMiddleware, requestCataloguesByEmail);
 
 // Admin routes (require authentication and admin privileges)
 router.use(authMiddleware);

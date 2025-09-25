@@ -80,21 +80,33 @@ export default function CataloguesPage() {
     try {
       console.log('🔥 FRONTEND DOWNLOAD CALLED:', { catalogueId, fileName })
 
+      // Check if user is authenticated
+      const token = localStorage.getItem('admin_token')
+      if (!token) {
+        alert('Please login to download catalogues. This ensures proper tracking and notifications.')
+        return
+      }
+
       // Use fetch to ensure backend tracking executes properly
       const downloadUrl = `${import.meta.env.VITE_API_URL}/catalogue/${catalogueId}/download`
 
       console.log('🔥 DOWNLOAD URL:', downloadUrl)
 
-      // Fetch the file with proper headers
+      // Fetch the file with authentication headers (now required)
       const response = await fetch(downloadUrl, {
         method: 'GET',
         headers: {
-          // Only include auth token if user is logged in
-          ...(localStorage.getItem('admin_token') && { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` })
+          'Authorization': `Bearer ${token}`
         }
       })
 
       if (!response.ok) {
+        if (response.status === 401) {
+          alert('Authentication expired. Please login again to download.')
+          localStorage.removeItem('admin_token')
+          window.location.href = '/admin/login'
+          return
+        }
         throw new Error(`Download failed: ${response.statusText}`)
       }
 
@@ -121,9 +133,7 @@ export default function CataloguesPage() {
 
     } catch (error) {
       console.error('Error downloading catalogue:', error)
-      // Fallback to direct link if fetch fails
-      const downloadUrl = `${import.meta.env.VITE_API_URL}/catalogue/${catalogueId}/download`
-      window.open(downloadUrl, '_blank')
+      alert('Download failed. Please try again or contact support.')
     }
   }
 
@@ -324,7 +334,7 @@ export default function CataloguesPage() {
                             {download.userId?.name || 'Anonymous'}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {download.userId?.email}
+                            {download.userId?.email || 'Not authenticated'}
                           </div>
                         </div>
                       </td>

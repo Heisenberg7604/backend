@@ -47,6 +47,30 @@ const subscribeNewsletter = async (req, res) => {
                     userAgent: req.get('User-Agent')
                 });
 
+                // Send admin notification for newsletter re-subscription
+                try {
+                    const { sendNotificationEmail } = require('../services/emailService');
+                    await sendNotificationEmail({
+                        subject: 'Newsletter Re-subscription',
+                        message: `${name || 'Anonymous'} has re-subscribed to the newsletter`,
+                        type: 'newsletter_subscription',
+                        data: {
+                            userName: name,
+                            userEmail: email,
+                            companyName: companyName,
+                            city: city,
+                            phoneNumber: phoneNumber,
+                            ipAddress: req.ip,
+                            timestamp: new Date(),
+                            action: 'reactivated'
+                        }
+                    });
+                    console.log('✅ Admin notification sent for newsletter re-subscription');
+                } catch (emailError) {
+                    console.error('❌ Failed to send admin notification for re-subscription:', emailError);
+                    // Don't fail re-subscription if email notification fails
+                }
+
                 return res.json({
                     success: true,
                     data: { subscriberId: existingSubscriber._id },
@@ -76,20 +100,28 @@ const subscribeNewsletter = async (req, res) => {
         });
 
         // Send admin notification for newsletter subscription
-        const { sendNotificationEmail } = require('../services/emailService');
-        await sendNotificationEmail({
-            subject: 'New Newsletter Subscription',
-            message: `${name || 'Anonymous'} has subscribed to the newsletter`,
-            type: 'newsletter_subscription',
-            data: {
-                userName: name,
-                userEmail: email,
-                companyName: companyName,
-                city: city,
-                ipAddress: req.ip,
-                timestamp: new Date()
-            }
-        });
+        try {
+            const { sendNotificationEmail } = require('../services/emailService');
+            await sendNotificationEmail({
+                subject: 'New Newsletter Subscription',
+                message: `${name || 'Anonymous'} has subscribed to the newsletter`,
+                type: 'newsletter_subscription',
+                data: {
+                    userName: name,
+                    userEmail: email,
+                    companyName: companyName,
+                    city: city,
+                    phoneNumber: phoneNumber,
+                    ipAddress: req.ip,
+                    timestamp: new Date(),
+                    action: 'new_subscription'
+                }
+            });
+            console.log('✅ Admin notification sent for new newsletter subscription');
+        } catch (emailError) {
+            console.error('❌ Failed to send admin notification for new subscription:', emailError);
+            // Don't fail subscription if email notification fails
+        }
 
         res.status(201).json({
             success: true,

@@ -313,7 +313,7 @@ const getProducts = async (req, res) => {
 const downloadProductCatalogues = async (req, res) => {
     try {
         const { productId } = req.params;
-        const userId = req.user ? req.user._id : null;
+        const userId = req.user._id; // Now guaranteed to exist due to authMiddleware
 
         console.log('🔥 DOWNLOAD PRODUCT CATALOGUES CALLED:', { productId, userId, method: req.method });
 
@@ -351,59 +351,40 @@ const downloadProductCatalogues = async (req, res) => {
             });
         }
 
-        // Create ZIP file with all catalogues
-        const archiver = require('archiver');
-        const zip = archiver('zip', { zlib: { level: 9 } });
+        // Return catalogue information instead of creating ZIP
+        // This allows the client to download individual files
+        const catalogueData = catalogues.map(catalogue => ({
+            id: catalogue._id,
+            fileName: catalogue.originalName,
+            fileSize: catalogue.fileSize,
+            downloadCount: catalogue.downloadCount,
+            description: catalogue.description,
+            downloadUrl: `/api/catalogue/download/${catalogue._id}`
+        }));
 
-        res.setHeader('Content-Type', 'application/zip');
-        res.setHeader('Content-Disposition', `attachment; filename="${productId}_catalogues.zip"`);
+        // Log activity (user is guaranteed to be authenticated)
+        await logActivity({
+            type: 'product_catalogues_download',
+            userId,
+            details: {
+                productId: actualProductId,
+                mobileProductId: productId,
+                catalogueCount: catalogues.length,
+                catalogueNames: catalogues.map(c => c.originalName)
+            },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+        });
 
-        zip.pipe(res);
-
-        // Add each catalogue to the ZIP
-        for (const catalogue of catalogues) {
-            if (fs.existsSync(catalogue.filePath)) {
-                zip.file(catalogue.filePath, { name: catalogue.originalName });
-
-                // Update download count
-                catalogue.downloadCount += 1;
-                await catalogue.save();
-
-                // Log download
-                await Download.create({
-                    userId,
-                    catalogueId: catalogue._id,
-                    fileName: catalogue.originalName,
-                    fileSize: catalogue.fileSize,
-                    ipAddress: req.ip,
-                    userAgent: req.get('User-Agent')
-                });
-            }
-        }
-
-        // Log activity if user is authenticated
-        if (userId) {
-            await logActivity({
-                type: 'product_catalogues_download',
-                userId,
-                details: {
-                    productId: actualProductId,
-                    mobileProductId: productId,
-                    catalogueCount: catalogues.length,
-                    catalogueNames: catalogues.map(c => c.originalName)
-                },
-                ipAddress: req.ip,
-                userAgent: req.get('User-Agent')
-            });
-        }
-
-        // Send admin notification for product catalogue download
+        // Send admin notification for product catalogue access
         const { sendNotificationEmail } = require('../services/emailService');
         await sendNotificationEmail({
-            subject: 'Product Catalogues Downloaded',
-            message: `${actualProductId} catalogues (${catalogues.length} files) have been downloaded${productId !== actualProductId ? ` (Mobile ID: ${productId})` : ''}`,
+            subject: 'Product Catalogues Accessed',
+            message: `${actualProductId} catalogues (${catalogues.length} files) have been accessed by ${req.user.name} (${req.user.email})${productId !== actualProductId ? ` (Mobile ID: ${productId})` : ''}`,
             type: 'product_catalogues_download',
             data: {
+                userName: req.user.name,
+                userEmail: req.user.email,
                 productId: actualProductId,
                 mobileProductId: productId,
                 catalogueCount: catalogues.length,
@@ -413,7 +394,17 @@ const downloadProductCatalogues = async (req, res) => {
             }
         });
 
-        await zip.finalize();
+        res.json({
+            success: true,
+            data: {
+                productId: actualProductId,
+                mobileProductId: productId,
+                catalogues: catalogueData,
+                totalFiles: catalogues.length
+            },
+            message: 'Product catalogues retrieved successfully',
+            error: null
+        });
 
     } catch (error) {
         console.error('Download product catalogues error:', error);
@@ -430,7 +421,7 @@ const downloadProductCatalogues = async (req, res) => {
 const downloadCatalogue = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user ? req.user._id : null;
+        const userId = req.user._id; // Now guaranteed to exist due to authMiddleware
 
         console.log('🔥 DOWNLOAD CATALOGUE CALLED:', { id, userId, method: req.method, ip: req.ip });
 
@@ -484,20 +475,18 @@ const downloadCatalogue = async (req, res) => {
             // Continue with download even if count update fails
         }
 
-        // Log activity if user is authenticated
-        if (userId) {
-            try {
-                await logActivity({
-                    type: 'catalogue_download',
-                    userId,
-                    details: { fileName: catalogue.originalName, catalogueId: catalogue._id },
-                    ipAddress: req.ip,
-                    userAgent: req.get('User-Agent')
-                });
-                console.log('✅ Activity logged for user:', userId);
-            } catch (activityError) {
-                console.error('❌ Error logging activity:', activityError);
-            }
+        // Log activity (user is guaranteed to be authenticated)
+        try {
+            await logActivity({
+                type: 'catalogue_download',
+                userId,
+                details: { fileName: catalogue.originalName, catalogueId: catalogue._id },
+                ipAddress: req.ip,
+                userAgent: req.get('User-Agent')
+            });
+            console.log('✅ Activity logged for user:', userId);
+        } catch (activityError) {
+            console.error('❌ Error logging activity:', activityError);
         }
 
         // Send admin notification for catalogue download
@@ -505,9 +494,11 @@ const downloadCatalogue = async (req, res) => {
             const { sendNotificationEmail } = require('../services/emailService');
             await sendNotificationEmail({
                 subject: 'Catalogue Downloaded',
-                message: `${catalogue.originalName} has been downloaded`,
+                message: `${catalogue.originalName} has been downloaded by ${req.user.name} (${req.user.email})`,
                 type: 'catalogue_download',
                 data: {
+                    userName: req.user.name,
+                    userEmail: req.user.email,
                     fileName: catalogue.originalName,
                     fileSize: catalogue.fileSize,
                     downloadCount: catalogue.downloadCount,
@@ -557,6 +548,137 @@ const downloadCatalogue = async (req, res) => {
                 error: error.message
             });
         }
+    }
+};
+
+// Request catalogues by email
+const requestCataloguesByEmail = async (req, res) => {
+    try {
+        const { productId, productTitle, userEmail, requestedAt } = req.body;
+        const userId = req.user ? req.user._id : null;
+
+        console.log('📧 EMAIL REQUEST CALLED:', { productId, productTitle, userEmail, userId });
+
+        // Validate email
+        if (!userEmail || !userEmail.includes('@')) {
+            return res.status(400).json({
+                success: false,
+                data: {},
+                message: 'Valid email address is required',
+                error: 'invalid_email'
+            });
+        }
+
+        // Handle both numeric (mobile app) and string (web) product IDs
+        let actualProductId = productId;
+        if (MOBILE_PRODUCT_MAPPING[productId]) {
+            actualProductId = MOBILE_PRODUCT_MAPPING[productId];
+            console.log('📱 Mobile app product ID mapped:', productId, '->', actualProductId);
+        }
+
+        // Get catalogues for this product
+        const catalogueFileNames = PRODUCT_CATALOGUES[actualProductId];
+        if (!catalogueFileNames) {
+            console.log('❌ Product not found:', { productId, actualProductId });
+            return res.status(404).json({
+                success: false,
+                data: {},
+                message: 'Product not found',
+                error: 'product_not_found'
+            });
+        }
+
+        // Find all catalogues for this product
+        const catalogues = await Catalogue.find({
+            originalName: { $in: catalogueFileNames },
+            isActive: true
+        });
+
+        if (catalogues.length === 0) {
+            return res.status(404).json({
+                success: false,
+                data: {},
+                message: 'No catalogues found for this product',
+                error: 'no_catalogues_found'
+            });
+        }
+
+        // Send email with catalogue attachments
+        const { sendCatalogueEmail } = require('../services/emailService');
+        const emailResult = await sendCatalogueEmail({
+            to: userEmail,
+            productTitle: actualProductId,
+            catalogues: catalogues,
+            userName: req.user ? req.user.name : 'Guest User',
+            userEmail: userEmail
+        });
+
+        if (!emailResult.success) {
+            console.error('❌ Email sending failed:', emailResult.error);
+            return res.status(500).json({
+                success: false,
+                data: {},
+                message: 'Failed to send email. Please try again later.',
+                error: 'email_send_failed'
+            });
+        }
+
+        // Log activity if user is authenticated
+        if (userId) {
+            await logActivity({
+                type: 'catalogue_email_request',
+                userId,
+                details: {
+                    productId: actualProductId,
+                    mobileProductId: productId,
+                    catalogueCount: catalogues.length,
+                    catalogueNames: catalogues.map(c => c.originalName),
+                    userEmail: userEmail
+                },
+                ipAddress: req.ip,
+                userAgent: req.get('User-Agent')
+            });
+        }
+
+        // Send admin notification
+        const { sendNotificationEmail } = require('../services/emailService');
+        await sendNotificationEmail({
+            subject: 'Catalogue Email Request',
+            message: `${actualProductId} catalogues (${catalogues.length} files) have been requested by email${productId !== actualProductId ? ` (Mobile ID: ${productId})` : ''}`,
+            type: 'catalogue_email_request',
+            data: {
+                userName: req.user ? req.user.name : 'Guest User',
+                userEmail: userEmail,
+                productId: actualProductId,
+                mobileProductId: productId,
+                catalogueCount: catalogues.length,
+                catalogueNames: catalogues.map(c => c.originalName),
+                ipAddress: req.ip,
+                timestamp: new Date()
+            }
+        });
+
+        res.json({
+            success: true,
+            data: {
+                productId: actualProductId,
+                mobileProductId: productId,
+                catalogueCount: catalogues.length,
+                userEmail: userEmail,
+                messageId: emailResult.messageId
+            },
+            message: 'Catalogues sent to your email successfully',
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Email request error:', error);
+        res.status(500).json({
+            success: false,
+            data: {},
+            message: 'Server error',
+            error: error.message
+        });
     }
 };
 
@@ -628,5 +750,6 @@ module.exports = {
     deleteCatalogue,
     downloadCatalogue,
     downloadProductCatalogues,
+    requestCataloguesByEmail,
     trackDownload
 };

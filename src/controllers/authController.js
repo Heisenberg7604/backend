@@ -57,7 +57,27 @@ const register = async (req, res) => {
             userAgent: req.get('User-Agent')
         });
 
-        // Note: Admin notifications for user registration removed as per requirements
+        // Send admin notification for new user registration
+        try {
+            await sendNotificationEmail({
+                subject: 'New User Registration',
+                message: `${name} from ${companyName || 'Unknown Company'} has registered`,
+                type: 'user_registration',
+                data: {
+                    userName: name,
+                    userEmail: email,
+                    companyName: companyName,
+                    phoneNumber: phoneNumber,
+                    city: city,
+                    ipAddress: req.ip,
+                    timestamp: new Date()
+                }
+            });
+            console.log('✅ Admin notification sent for new user registration');
+        } catch (emailError) {
+            console.error('❌ Failed to send admin notification:', emailError);
+            // Don't fail registration if email notification fails
+        }
 
         // Create notification for admin
         const notification = await Notification.create({

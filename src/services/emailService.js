@@ -1,9 +1,11 @@
 const nodemailer = require('nodemailer');
 const logActivity = require('../utils/logActivity');
+const fs = require('fs');
+const path = require('path');
 
 // Create Gmail SMTP transporter (simplified like jpel2)
 const createTransporter = () => {
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
         service: 'Gmail',
         auth: {
             user: 'media.jpel@gmail.com',
@@ -119,8 +121,93 @@ const sendPasswordResetEmail = async ({ to, resetUrl, userName }) => {
     });
 };
 
+// Send catalogue email with PDF attachments
+const sendCatalogueEmail = async ({ to, productTitle, catalogues, userName, userEmail }) => {
+    try {
+        const transporter = createTransporter();
+
+        const html = `
+            <div style="font-family: Arial, sans-serif; border: 2px dashed #000; padding: 20px; max-width: 600px; margin: auto;">
+                <!-- Logo -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="https://jpel.in/static/media/footer-logo.6cd7aaadced76bd27f40.jpg" alt="JP Group Logo" style="max-width: 400px;">
+                </div>
+                
+                <h2 style="text-align: center; font-size: 24px; margin-bottom: 20px;">📧 Your Requested Catalogues</h2>
+                
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <p style="margin-bottom: 10px; font-size: 16px;">Dear ${userName},</p>
+                    <p style="margin-bottom: 10px; font-size: 16px;">Thank you for your interest in our ${productTitle} products!</p>
+                    <p style="margin-bottom: 10px; font-size: 16px;">Please find the requested catalogues attached to this email.</p>
+                </div>
+                
+                <div style="background-color: #e8f4fd; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: #1976d2;">📋 Attached Catalogues:</h3>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        ${catalogues.map(cat => `<li style="margin-bottom: 5px;">${cat.originalName}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: #856404;">💡 Next Steps:</h3>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li style="margin-bottom: 5px;">Review the attached catalogues</li>
+                        <li style="margin-bottom: 5px;">Contact us for technical specifications</li>
+                        <li style="margin-bottom: 5px;">Request a quote or consultation</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="https://jpel.in/contact" style="background-color: #E53E3E; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Contact Us</a>
+                </div>
+                
+                <p style="margin-top: 30px; font-size: 12px; color: #666;">
+                    This email was sent from JP Extrusiontech Private Limited.<br>
+                    If you have any questions, please contact us at info@jpel.in
+                </p>
+            </div>
+        `;
+
+        // Prepare attachments
+        const attachments = [];
+        for (const catalogue of catalogues) {
+            if (fs.existsSync(catalogue.filePath)) {
+                attachments.push({
+                    filename: catalogue.originalName,
+                    path: catalogue.filePath,
+                    contentType: 'application/pdf'
+                });
+            } else {
+                console.warn(`⚠️ File not found: ${catalogue.filePath}`);
+            }
+        }
+
+        if (attachments.length === 0) {
+            throw new Error('No catalogue files found to attach');
+        }
+
+        const mailOptions = {
+            from: 'media.jpel@gmail.com',
+            to: to,
+            subject: `JP Group Catalogues: ${productTitle} (${attachments.length} files)`,
+            html: html,
+            attachments: attachments
+        };
+
+        console.log('📧 Sending catalogue email...');
+        const result = await transporter.sendMail(mailOptions);
+        console.log('✅ Catalogue email sent successfully:', result.messageId);
+
+        return { success: true, messageId: result.messageId };
+    } catch (error) {
+        console.error('❌ Catalogue email sending error:', error);
+        return { success: false, error: error.message };
+    }
+};
+
 module.exports = {
     sendEmail,
     sendNotificationEmail,
-    sendPasswordResetEmail
+    sendPasswordResetEmail,
+    sendCatalogueEmail
 };

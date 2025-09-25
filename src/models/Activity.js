@@ -9,6 +9,8 @@ const activitySchema = new mongoose.Schema({
             'logout',
             'user_register',
             'catalogue_download',
+            'product_catalogues_download',
+            'catalogue_email_request',
             'newsletter_subscribe',
             'newsletter_unsubscribe',
             'admin_create_user',
@@ -16,6 +18,9 @@ const activitySchema = new mongoose.Schema({
             'admin_delete_user',
             'admin_change_user_status',
             'admin_login',
+            'admin_upload_catalogue',
+            'admin_update_catalogue',
+            'admin_delete_catalogue',
             'password_reset_request',
             'password_reset_complete'
         ]
