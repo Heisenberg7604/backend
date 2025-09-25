@@ -246,7 +246,7 @@ const PRODUCT_CATALOGUES = {
         '4 Shuttle Circular Loom.pdf',
         '6 Shuttle Circular Loom.pdf',
         '8,10 & 12 Shuttle Circular Loom.pdf',
-        'Inside Lamination.pdf'
+        'Circular loom with Inside Lamination.pdf'
     ],
     'ExtrusionCoating': [
         'Extrusion Coating Line.pdf',
@@ -267,7 +267,7 @@ const PRODUCT_CATALOGUES = {
 // Mobile app product ID mapping (numeric IDs to product names)
 const MOBILE_PRODUCT_MAPPING = {
     '1': 'TapeExtrusion',
-    '2': 'CircularLoom', 
+    '2': 'CircularLoom',
     '3': 'CircularLoom',
     '4': 'ExtrusionCoating',
     '5': 'PrintingMachine',

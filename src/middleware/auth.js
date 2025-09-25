@@ -41,12 +41,20 @@ const authMiddleware = async (req, res, next) => {
 
 const optionalAuthMiddleware = async (req, res, next) => {
     try {
-        const token = req.header('Authorization')?.replace('Bearer ', '');
+        const header = req.headers.authorization;
 
-        if (token) {
+        if (header && header.startsWith('Bearer ')) {
+            const token = header.split(' ')[1];
             try {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
-                req.user = decoded;
+
+                // Get user from database to check if still active
+                const user = await User.findById(decoded.id);
+                if (user && !user.isDeleted && user.isActive) {
+                    req.user = user;
+                } else {
+                    req.user = null;
+                }
             } catch (error) {
                 // Invalid token, but we continue without authentication
                 req.user = null;
