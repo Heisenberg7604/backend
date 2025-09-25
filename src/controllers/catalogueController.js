@@ -588,17 +588,34 @@ const requestCataloguesByEmail = async (req, res) => {
             });
         }
 
-        // Find all catalogues for this product
-        const catalogues = await Catalogue.find({
-            originalName: { $in: catalogueFileNames },
-            isActive: true
-        });
+        // Create catalogue objects directly from files (no database dependency)
+        const catalogues = [];
+        const fs = require('fs');
+        const path = require('path');
+
+        for (const fileName of catalogueFileNames) {
+            const filePath = path.join(__dirname, '../catalogue', fileName);
+            if (fs.existsSync(filePath)) {
+                const stats = fs.statSync(filePath);
+                catalogues.push({
+                    _id: fileName.replace('.pdf', ''), // Use filename as ID
+                    originalName: fileName,
+                    filePath: filePath,
+                    fileSize: stats.size,
+                    mimeType: 'application/pdf',
+                    downloadCount: 0 // Default count
+                });
+                console.log('✅ Found catalogue file:', fileName);
+            } else {
+                console.warn('⚠️ Catalogue file not found:', filePath);
+            }
+        }
 
         if (catalogues.length === 0) {
             return res.status(404).json({
                 success: false,
                 data: {},
-                message: 'No catalogues found for this product',
+                message: 'No catalogue files found for this product',
                 error: 'no_catalogues_found'
             });
         }
