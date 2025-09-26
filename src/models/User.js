@@ -14,7 +14,16 @@ const userSchema = new mongoose.Schema({
     emailVerified: { type: Boolean, default: false },
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
-    lastLogin: { type: Date }
+    lastLogin: { type: Date },
+    // 2FA fields
+    twoFactorSecret: { type: String },
+    twoFactorBackupCodes: [{ type: String }],
+    is2FAEnabled: { type: Boolean, default: false },
+    // Password reset with OTP
+    passwordResetOTP: { type: String },
+    passwordResetOTPExpires: { type: Date },
+    passwordResetToken: { type: String },
+    passwordResetExpires: { type: Date }
 }, {
     timestamps: true
 });

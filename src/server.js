@@ -114,6 +114,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/catalogue', require('./routes/catalogue'));
 app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/otp', require('./routes/otp'));
 
 // Health check endpoints - SIMPLE AND RELIABLE
 app.get('/health', (req, res) => {
@@ -153,7 +154,8 @@ app.get('/', (req, res) => {
             auth: '/api/auth',
             admin: '/api/admin',
             catalogue: '/api/catalogue',
-            newsletter: '/api/newsletter'
+            newsletter: '/api/newsletter',
+            otp: '/api/otp'
         }
     });
 });
