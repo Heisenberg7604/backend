@@ -14,28 +14,25 @@ const createTransporter = () => {
             pass: process.env.GMAIL_APP_PASSWORD || 'tqda zbxi cqua jgri'
         },
         // Production-optimized settings
-        connectionTimeout: 60000, // 60 seconds
-        greetingTimeout: 30000,   // 30 seconds
-        socketTimeout: 60000,     // 60 seconds
-        pool: true,
-        maxConnections: 3,        // Reduced for production stability
-        maxMessages: 50,         // Reduced for production stability
-        rateLimit: 3,            // Reduced rate limit
+        connectionTimeout: 30000, // 30 seconds
+        greetingTimeout: 15000,   // 15 seconds
+        socketTimeout: 30000,     // 30 seconds
+        pool: false,              // Disable pooling for production stability
+        maxConnections: 1,        // Single connection for stability
+        maxMessages: 10,         // Reduced for production stability
+        rateLimit: 1,            // Conservative rate limit
         tls: {
             rejectUnauthorized: false,
             ciphers: 'SSLv3'
         },
         // Additional production settings
         requireTLS: true,
-        debug: process.env.NODE_ENV === 'development',
-        logger: process.env.NODE_ENV === 'development'
+        debug: false,            // Disable debug in production
+        logger: false,           // Disable logger in production
+        // Connection retry settings
+        retryDelay: 2000,
+        maxRetries: 2
     };
-
-    // Add retry mechanism for production
-    if (process.env.NODE_ENV === 'production') {
-        config.retryDelay = 5000;
-        config.maxRetries = 3;
-    }
 
     return nodemailer.createTransport(config);
 };
@@ -267,9 +264,7 @@ const testTransporter = createTransporter();
 testTransporter.verify((error) => {
     if (error) {
         console.error('❌ SMTP transporter verification failed:', error.message);
-        if (process.env.NODE_ENV === 'production') {
-            console.log('⚠️  Email service will retry on first use');
-        }
+        console.log('⚠️  Email service will retry on first use');
     } else {
         console.log('✅ SMTP transporter is ready to send emails');
     }
@@ -277,9 +272,13 @@ testTransporter.verify((error) => {
 
 // Graceful shutdown for production
 process.on('SIGTERM', () => {
-    testTransporter.close();
+    if (testTransporter) {
+        testTransporter.close();
+    }
 });
 
 process.on('SIGINT', () => {
-    testTransporter.close();
+    if (testTransporter) {
+        testTransporter.close();
+    }
 });

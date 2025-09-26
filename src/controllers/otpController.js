@@ -24,7 +24,11 @@ const generatePasswordResetOTP = async (req, res) => {
             // Don't reveal if email exists or not for security
             return res.json({
                 success: true,
-                message: 'If an account with that email exists, we have sent an OTP.'
+                message: 'If an account with that email exists, we have sent an OTP.',
+                data: {
+                    email: email,
+                    expiresIn: 300
+                }
             });
         }
 
