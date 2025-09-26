@@ -5,13 +5,17 @@ const path = require('path');
 
 // Create Gmail SMTP transporter with production-ready configuration
 const createTransporter = () => {
+    if (!process.env.GMAIL_APP_PASSWORD) {
+        throw new Error('GMAIL_APP_PASSWORD environment variable is required');
+    }
+
     const config = {
         host: 'smtp.gmail.com',
         port: 587,
         secure: false, // true for 465, false for other ports
         auth: {
             user: 'media.jpel@gmail.com',
-            pass: process.env.GMAIL_APP_PASSWORD || 'tqda zbxi cqua jgri'
+            pass: process.env.GMAIL_APP_PASSWORD
         },
         // Production-optimized settings
         connectionTimeout: 30000, // 30 seconds
