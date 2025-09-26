@@ -3,29 +3,41 @@ const logActivity = require('../utils/logActivity');
 const fs = require('fs');
 const path = require('path');
 
-// Create Gmail SMTP transporter (matching jeil2 working configuration)
+// Create Gmail SMTP transporter with production-ready configuration
 const createTransporter = () => {
-    return nodemailer.createTransport({
-        host: 'smtp.gmail.com', // Gmail SMTP host
-        port: 587, // Gmail SMTP port
+    const config = {
+        host: 'smtp.gmail.com',
+        port: 587,
         secure: false, // true for 465, false for other ports
         auth: {
-            user: 'media.jpel@gmail.com', // Gmail address
-            pass: process.env.GMAIL_APP_PASSWORD || 'tqda zbxi cqua jgri' // Gmail app password
+            user: 'media.jpel@gmail.com',
+            pass: process.env.GMAIL_APP_PASSWORD || 'tqda zbxi cqua jgri'
         },
-        // Add timeout and connection settings for better performance
-        connectionTimeout: 120000, // 120 seconds for large attachments
+        // Production-optimized settings
+        connectionTimeout: 60000, // 60 seconds
         greetingTimeout: 30000,   // 30 seconds
-        socketTimeout: 120000,     // 120 seconds for large attachments
-        pool: true,               // Use connection pooling
-        maxConnections: 5,        // Maximum number of connections
-        maxMessages: 100,        // Maximum messages per connection
-        rateLimit: 5,             // Reduced rate limit for large attachments
-        // Additional settings for large attachments
+        socketTimeout: 60000,     // 60 seconds
+        pool: true,
+        maxConnections: 3,        // Reduced for production stability
+        maxMessages: 50,         // Reduced for production stability
+        rateLimit: 3,            // Reduced rate limit
         tls: {
-            rejectUnauthorized: false
-        }
-    });
+            rejectUnauthorized: false,
+            ciphers: 'SSLv3'
+        },
+        // Additional production settings
+        requireTLS: true,
+        debug: process.env.NODE_ENV === 'development',
+        logger: process.env.NODE_ENV === 'development'
+    };
+
+    // Add retry mechanism for production
+    if (process.env.NODE_ENV === 'production') {
+        config.retryDelay = 5000;
+        config.maxRetries = 3;
+    }
+
+    return nodemailer.createTransport(config);
 };
 
 // Send email function (simplified like jpel2)
@@ -205,7 +217,7 @@ const sendOTPEmail = async ({ to, otp, userName }) => {
         <div style="font-family: Arial, sans-serif; border: 2px dashed #000; padding: 20px; max-width: 600px; margin: auto;">
             <!-- Logo -->
             <div style="text-align: center; margin-bottom: 20px;">
-                <img src="https://jpel.in/static/media/footer-logo.6cd7aaadced76bd27f40.jpg" alt="JP Group Logo" style="max-width: 400px;">
+                <img src="https://jpel.in/static/media/footer-logo.6cd7aaadced76bd27f40.jpg" alt="JP Group Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto;">
             </div>
             
             <h2 style="text-align: center; font-size: 24px; margin-bottom: 20px;">Password Reset OTP</h2>
@@ -250,12 +262,24 @@ module.exports = {
     sendOTPEmail
 };
 
-// Verify transporter on startup (like jeil2)
+// Verify transporter on startup with production-ready error handling
 const testTransporter = createTransporter();
 testTransporter.verify((error) => {
     if (error) {
-        console.error('❌ SMTP transporter verification failed:', error);
+        console.error('❌ SMTP transporter verification failed:', error.message);
+        if (process.env.NODE_ENV === 'production') {
+            console.log('⚠️  Email service will retry on first use');
+        }
     } else {
         console.log('✅ SMTP transporter is ready to send emails');
     }
+});
+
+// Graceful shutdown for production
+process.on('SIGTERM', () => {
+    testTransporter.close();
+});
+
+process.on('SIGINT', () => {
+    testTransporter.close();
 });
