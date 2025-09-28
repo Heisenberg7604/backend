@@ -68,7 +68,7 @@ app.use(cors({
         if (allowedOrigins.includes(origin)) return callback(null, true);
         if (origin && origin.includes('localhost')) return callback(null, true);
         if (origin && origin.includes('jpgroup.industries')) return callback(null, true);
-        
+
         console.log('❌ CORS blocked origin:', origin);
         return callback(new Error('Not allowed by CORS'));
     },
