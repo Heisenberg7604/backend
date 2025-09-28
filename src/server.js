@@ -68,11 +68,14 @@ app.use(cors({
         if (allowedOrigins.includes(origin)) return callback(null, true);
         if (origin && origin.includes('localhost')) return callback(null, true);
         if (origin && origin.includes('jpgroup.industries')) return callback(null, true);
-
+        
         console.log('❌ CORS blocked origin:', origin);
         return callback(new Error('Not allowed by CORS'));
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 200
 }));
 
 // Body parsing middleware
