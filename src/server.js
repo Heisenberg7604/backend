@@ -39,10 +39,20 @@ const allowedOrigins = [
     'http://localhost:8081',
     'http://localhost:19006',
     'http://localhost:3000',
-    'exp://192.168.1.100:8081',
-    process.env.CORS_ORIGIN,
-    process.env.FRONTEND_URL
-].filter(Boolean);
+    'exp://192.168.1.100:8081'
+];
+
+// Add CORS_ORIGIN (split by comma if multiple)
+if (process.env.CORS_ORIGIN) {
+    const corsOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+    allowedOrigins.push(...corsOrigins);
+}
+
+// Add FRONTEND_URL (split by comma if multiple)
+if (process.env.FRONTEND_URL) {
+    const frontendUrls = process.env.FRONTEND_URL.split(',').map(url => url.trim());
+    allowedOrigins.push(...frontendUrls);
+}
 
 // Add production domain
 if (process.env.NODE_ENV === 'production') {
