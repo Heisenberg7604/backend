@@ -3,12 +3,31 @@ const logActivity = require('../utils/logActivity');
 const fs = require('fs');
 const path = require('path');
 
-// Create Gmail SMTP transporter - clean and fast
+// Create SMTP transporter - supports custom SMTP and Gmail fallback
 const createTransporter = () => {
-    if (!process.env.GMAIL_APP_PASSWORD) {
-        throw new Error('GMAIL_APP_PASSWORD environment variable is required');
+    // Check for custom SMTP configuration first (Railway production)
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+        console.log('📧 Using custom SMTP configuration');
+        return nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT || 587,
+            secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
     }
 
+    // Fallback to Gmail if no custom SMTP configured (local development)
+    if (!process.env.GMAIL_APP_PASSWORD) {
+        throw new Error('Either SMTP configuration or GMAIL_APP_PASSWORD environment variable is required');
+    }
+
+    console.log('📧 Using Gmail SMTP configuration');
     return nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -19,7 +38,7 @@ const createTransporter = () => {
 };
 
 // Send email function - clean and fast
-const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com' }) => {
+const sendEmail = async ({ to, subject, html, text, from = process.env.SMTP_FROM || 'media.jpel@gmail.com' }) => {
     try {
         const transporter = createTransporter();
 
@@ -31,10 +50,12 @@ const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com
             text: text
         };
 
+        console.log(`📧 Sending email to: ${mailOptions.to}`);
         const result = await transporter.sendMail(mailOptions);
+        console.log(`✅ Email sent successfully: ${result.messageId}`);
         return { success: true, messageId: result.messageId };
     } catch (error) {
-        console.error('Email sending error:', error.message);
+        console.error('❌ Email sending error:', error.message);
         return { success: false, error: error.message };
     }
 };
@@ -146,7 +167,7 @@ const sendCatalogueEmail = async ({ to, productTitle, catalogues, userName, user
         }
 
         const mailOptions = {
-            from: 'media.jpel@gmail.com',
+            from: process.env.SMTP_FROM || 'media.jpel@gmail.com',
             to: to,
             subject: `JP Group Catalogues: ${productTitle} (${attachments.length} files)`,
             html: html,
@@ -201,7 +222,7 @@ const sendOTPEmail = async ({ to, otp, userName }) => {
         to: to,
         subject: 'Password Reset OTP - JP Group',
         html: html,
-        from: 'media.jpel@gmail.com'
+        from: process.env.SMTP_FROM || 'media.jpel@gmail.com'
     });
 };
 
