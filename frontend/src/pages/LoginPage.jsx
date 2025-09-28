@@ -4,8 +4,8 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
     const [formData, setFormData] = useState({
-        email: 'admin@jpgroup.com',
-        password: 'admin123'
+        email: '',
+        password: ''
     })
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)

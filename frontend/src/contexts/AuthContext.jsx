@@ -34,13 +34,21 @@ export function AuthProvider({ children }) {
       if (response.success) {
         setUser(response.data.user)
         setIsAuthenticated(true)
+        console.log('✅ Token verified successfully');
       } else {
         console.log('❌ Token verification failed:', response.message);
         logout()
       }
     } catch (error) {
       console.log('❌ Token verification error:', error);
-      logout()
+      // Don't logout immediately on network errors, just set loading to false
+      if (error.message && error.message.includes('Network')) {
+        console.log('🔄 Network error during token verification, keeping session');
+        setUser(null)
+        setIsAuthenticated(false)
+      } else {
+        logout()
+      }
     } finally {
       setLoading(false)
     }

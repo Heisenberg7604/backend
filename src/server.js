@@ -54,9 +54,10 @@ if (process.env.FRONTEND_URL) {
     allowedOrigins.push(...frontendUrls);
 }
 
-// Add production domain
+// Add production domains
 if (process.env.NODE_ENV === 'production') {
-    allowedOrigins.push('https://backend-4t1a3.sevalla.app');
+    allowedOrigins.push('https://jpgroup.industries');
+    allowedOrigins.push('https://www.jpgroup.industries');
 }
 
 console.log('🌐 CORS allowed origins:', allowedOrigins);
@@ -66,7 +67,7 @@ app.use(cors({
         if (!origin) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
         if (origin && origin.includes('localhost')) return callback(null, true);
-        if (origin && origin.includes('sevalla.app')) return callback(null, true);
+        if (origin && origin.includes('jpgroup.industries')) return callback(null, true);
 
         console.log('❌ CORS blocked origin:', origin);
         return callback(new Error('Not allowed by CORS'));
