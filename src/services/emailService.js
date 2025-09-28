@@ -18,7 +18,16 @@ const createTransporter = () => {
             },
             tls: {
                 rejectUnauthorized: false
-            }
+            },
+            // Add timeout and connection settings
+            connectionTimeout: 10000, // 10 seconds
+            greetingTimeout: 5000,    // 5 seconds
+            socketTimeout: 10000,     // 10 seconds
+            pool: true,
+            maxConnections: 1,
+            maxMessages: 3,
+            rateDelta: 20000,         // 20 seconds between emails
+            rateLimit: 5              // max 5 emails per rateDelta
         });
     }
 

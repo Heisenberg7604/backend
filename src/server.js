@@ -248,7 +248,7 @@ process.on('unhandledRejection', (reason, promise) => {
     process.exit(1);
 });
 
-// Heartbeat logging
+// Heartbeat logging - reduced frequency
 let heartbeatCount = 0;
 setInterval(() => {
     heartbeatCount++;
@@ -257,7 +257,7 @@ setInterval(() => {
         memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
         timestamp: new Date().toISOString()
     });
-}, 10000); // Every 10 seconds
+}, 60000); // Every 60 seconds (reduced from 10 seconds)
 
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
