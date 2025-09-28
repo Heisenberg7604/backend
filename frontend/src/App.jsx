@@ -15,7 +15,7 @@ function App() {
         {/* Show blank screen for root and other routes */}
         <Route path="/" element={<BlankScreen />} />
         <Route path="/*" element={<BlankScreen />} />
-        
+
         {/* Admin routes */}
         <Route path="/admin/login" element={<LoginPage />} />
         <Route path="/admin/*" element={<ProtectedRoutes />} />
@@ -34,11 +34,11 @@ function BlankScreen() {
 
 function ProtectedRoutes() {
   const { isAuthenticated } = useAuth()
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/admin/login" replace />
   }
-  
+
   return (
     <Layout>
       <Routes>

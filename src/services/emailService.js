@@ -3,55 +3,23 @@ const logActivity = require('../utils/logActivity');
 const fs = require('fs');
 const path = require('path');
 
-// Create Gmail SMTP transporter with production-ready configuration
+// Create Gmail SMTP transporter - clean and fast
 const createTransporter = () => {
     if (!process.env.GMAIL_APP_PASSWORD) {
         throw new Error('GMAIL_APP_PASSWORD environment variable is required');
     }
 
-    const config = {
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false, // true for 465, false for other ports
+    return nodemailer.createTransport({
+        service: 'gmail',
         auth: {
             user: 'media.jpel@gmail.com',
             pass: process.env.GMAIL_APP_PASSWORD
-        },
-        // Optimized settings for production stability
-        connectionTimeout: 60000, // 60 seconds
-        greetingTimeout: 30000,   // 30 seconds
-        socketTimeout: 60000,     // 60 seconds
-        pool: true,               // Enable pooling for better connection management
-        maxConnections: 5,        // Allow multiple connections
-        maxMessages: 100,         // Higher message limit
-        rateLimit: 5,            // Allow more requests per second
-        tls: {
-            rejectUnauthorized: true, // Use proper TLS validation
-            ciphers: 'HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
-        },
-        // Additional production settings
-        requireTLS: true,
-        debug: false,            // Disable debug in production
-        logger: false,           // Disable logger in production
-        // Connection retry settings
-        retryDelay: 5000,        // 5 seconds between retries
-        maxRetries: 3,           // More retries
-        // Keep-alive settings
-        keepAlive: true,
-        keepAliveDelay: 30000,   // 30 seconds
-        // Additional Gmail-specific settings
-        service: 'gmail',        // Use Gmail service
-        ignoreTLS: false,
-        secureConnection: false
-    };
-
-    return nodemailer.createTransport(config);
+        }
+    });
 };
 
-// Send email function with retry logic
-const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com' }, retryCount = 0) => {
-    const maxRetries = 3;
-
+// Send email function - clean and fast
+const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com' }) => {
     try {
         const transporter = createTransporter();
 
@@ -63,63 +31,11 @@ const sendEmail = async ({ to, subject, html, text, from = 'media.jpel@gmail.com
             text: text
         };
 
-        console.log(`📧 Sending email... (attempt ${retryCount + 1}/${maxRetries + 1})`);
-
-        // Add timeout wrapper
-        const sendWithTimeout = () => {
-            return new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error('Email sending timeout'));
-                }, 45000); // 45 seconds timeout
-
-                transporter.sendMail(mailOptions)
-                    .then(result => {
-                        clearTimeout(timeout);
-                        resolve(result);
-                    })
-                    .catch(error => {
-                        clearTimeout(timeout);
-                        reject(error);
-                    });
-            });
-        };
-
-        const result = await sendWithTimeout();
-        console.log('✅ Email sent successfully:', result.messageId);
-
-        // Close transporter after successful send
-        transporter.close();
-
+        const result = await transporter.sendMail(mailOptions);
         return { success: true, messageId: result.messageId };
     } catch (error) {
-        console.error(`❌ Email sending error (attempt ${retryCount + 1}):`, error.message);
-
-        // Retry logic for connection issues
-        if (retryCount < maxRetries && (
-            error.message.includes('Unexpected socket close') ||
-            error.message.includes('ECONNRESET') ||
-            error.message.includes('ETIMEDOUT') ||
-            error.message.includes('ECONNREFUSED') ||
-            error.code === 'ECONNECTION'
-        )) {
-            console.log(`🔄 Retrying email send in ${(retryCount + 1) * 2} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 2000));
-            return sendEmail({ to, subject, html, text, from }, retryCount + 1);
-        }
-
-        // Provide more specific error messages
-        let errorMessage = error.message;
-        if (error.code === 'EAUTH') {
-            errorMessage = 'Email authentication failed. Please check Gmail app password.';
-        } else if (error.code === 'ECONNECTION') {
-            errorMessage = 'Failed to connect to email server.';
-        } else if (error.code === 'ETIMEDOUT') {
-            errorMessage = 'Email server connection timed out.';
-        } else if (error.message.includes('Unexpected socket close')) {
-            errorMessage = 'Email server connection was unexpectedly closed. Please try again.';
-        }
-
-        return { success: false, error: errorMessage };
+        console.error('Email sending error:', error.message);
+        return { success: false, error: error.message };
     }
 };
 
@@ -237,48 +153,11 @@ const sendCatalogueEmail = async ({ to, productTitle, catalogues, userName, user
             attachments: attachments
         };
 
-        console.log('📧 Sending catalogue email...');
-
-        // Add timeout wrapper for catalogue emails
-        const sendWithTimeout = () => {
-            return new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error('Catalogue email sending timeout'));
-                }, 60000); // 60 seconds timeout for catalogue emails
-
-                transporter.sendMail(mailOptions)
-                    .then(result => {
-                        clearTimeout(timeout);
-                        resolve(result);
-                    })
-                    .catch(error => {
-                        clearTimeout(timeout);
-                        reject(error);
-                    });
-            });
-        };
-
-        const result = await sendWithTimeout();
-        console.log('✅ Catalogue email sent successfully:', result.messageId);
-
-        // Close transporter after successful send
-        transporter.close();
-
+        const result = await transporter.sendMail(mailOptions);
         return { success: true, messageId: result.messageId };
     } catch (error) {
-        console.error('❌ Catalogue email sending error:', error);
-
-        // Provide more specific error messages
-        let errorMessage = error.message;
-        if (error.code === 'EAUTH') {
-            errorMessage = 'Email authentication failed. Please check Gmail app password.';
-        } else if (error.code === 'ECONNECTION') {
-            errorMessage = 'Failed to connect to email server.';
-        } else if (error.code === 'ETIMEDOUT') {
-            errorMessage = 'Email server connection timed out.';
-        }
-
-        return { success: false, error: errorMessage };
+        console.error('Catalogue email sending error:', error.message);
+        return { success: false, error: error.message };
     }
 };
 
@@ -333,26 +212,5 @@ module.exports = {
     sendOTPEmail
 };
 
-// Verify transporter on startup with production-ready error handling
-const testTransporter = createTransporter();
-testTransporter.verify((error) => {
-    if (error) {
-        console.error('❌ SMTP transporter verification failed:', error.message);
-        console.log('⚠️  Email service will retry on first use');
-    } else {
-        console.log('✅ SMTP transporter is ready to send emails');
-    }
-});
-
-// Graceful shutdown for production
-process.on('SIGTERM', () => {
-    if (testTransporter) {
-        testTransporter.close();
-    }
-});
-
-process.on('SIGINT', () => {
-    if (testTransporter) {
-        testTransporter.close();
-    }
-});
+// Email service ready
+console.log('✅ Email service initialized');
