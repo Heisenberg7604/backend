@@ -276,9 +276,9 @@ const MOBILE_PRODUCT_MAPPING = {
     '8': 'PET',
     '9': 'Monofilament',
     '10': 'BoxStrapping',
-    '11': 'SheetExtrusion',
-    '12': 'CastLine',
-    '13': 'Flexible'
+    '11': 'BoxStrapping',
+    '12': 'SheetExtrusion',  // Fixed: Multilayer Sheet Lines should map to SheetExtrusion
+    '13': 'CastLine'         // Fixed: Cast Film Line should map to CastLine
 };
 
 // Get all products with their catalogues

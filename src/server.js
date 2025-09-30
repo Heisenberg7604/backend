@@ -34,12 +34,20 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// CORS configuration - PROFESSIONAL FIX
+// CORS configuration - FLEXIBLE FOR MOBILE & WEB
 const allowedOrigins = [
+    // Development origins
     'http://localhost:8081',
     'http://localhost:19006',
     'http://localhost:3000',
-    'exp://192.168.1.100:8081'
+    'http://localhost:8080',
+    'http://localhost:5000',
+    'exp://192.168.1.100:8081',
+    'exp://localhost:8081',
+
+    // Production domains
+    'https://jpgroup.industries',
+    'https://www.jpgroup.industries'
 ];
 
 // Add CORS_ORIGIN (split by comma if multiple)
@@ -54,27 +62,34 @@ if (process.env.FRONTEND_URL) {
     allowedOrigins.push(...frontendUrls);
 }
 
-// Add production domains
-if (process.env.NODE_ENV === 'production') {
-    allowedOrigins.push('https://jpgroup.industries');
-    allowedOrigins.push('https://www.jpgroup.industries');
-}
-
 console.log('🌐 CORS allowed origins:', allowedOrigins);
 
 app.use(cors({
     origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
         if (!origin) return callback(null, true);
+
+        // Allow if origin is in allowed list
         if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        // Allow localhost for development
         if (origin && origin.includes('localhost')) return callback(null, true);
+
+        // Allow jpgroup.industries domains
         if (origin && origin.includes('jpgroup.industries')) return callback(null, true);
+
+        // Allow Expo development origins
+        if (origin && origin.startsWith('exp://')) return callback(null, true);
+
+        // Allow React Native Metro bundler
+        if (origin && origin.includes('metro')) return callback(null, true);
 
         console.log('❌ CORS blocked origin:', origin);
         return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     optionsSuccessStatus: 200
 }));
 
