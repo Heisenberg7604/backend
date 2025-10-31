@@ -16,6 +16,9 @@ const createTransporter = () => {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS
             },
+            // ADD THESE LINES TO FIX THE HELO HOSTNAME ERROR:
+            name: process.env.SMTP_NAME || 'jpgroup.industries',
+            helo: process.env.SMTP_HELO || 'jpgroup.industries',
             tls: {
                 rejectUnauthorized: false
             },
