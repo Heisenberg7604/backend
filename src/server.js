@@ -38,7 +38,7 @@ app.use('/api/', limiter);
 const allowedOrigins = [
     // Development origins
     'http://localhost:8081',
-    'http://localhost:19006',
+    'http://localhost:5001',
     'http://localhost:3000',
     'http://localhost:8080',
     'http://localhost:5000',
@@ -47,7 +47,8 @@ const allowedOrigins = [
 
     // Production domains
     'https://jpgroup.industries',
-    'https://www.jpgroup.industries'
+    'https://www.jpgroup.industries',
+'https://www.jpgroup.industries:5001'
 ];
 
 // Add CORS_ORIGIN (split by comma if multiple)
