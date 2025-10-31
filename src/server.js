@@ -64,6 +64,10 @@ if (process.env.FRONTEND_URL) {
 
 console.log('🌐 CORS allowed origins:', allowedOrigins);
 
+// Log file upload configuration
+const maxFileSizeMB = Math.round((parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024) / (1024 * 1024));
+console.log(`📁 File upload limit: ${maxFileSizeMB}MB`);
+
 app.use(cors({
     origin: function (origin, callback) {
         // Allow requests with no origin (mobile apps, Postman, etc.)

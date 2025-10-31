@@ -1,16 +1,24 @@
 {
   "name": "jp-app-backend",
   "version": "1.0.0",
-  "description": "Backend API for JP App",
+  "description": "Backend API for JP App - Hostinger Ready",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "build": "cd frontend && npm install && npm run build",
-    "postinstall": "npm run build",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "build:backend": "echo 'Backend build complete'",
+    "postinstall": "npm run build:frontend",
     "test": "jest",
     "test:watch": "jest --watch",
-    "seed:admin": "node scripts/seedAdmin.js"
+    "seed:admin": "node scripts/seedAdmin.js",
+    "prestart": "npm run build:frontend",
+    "heroku-postbuild": "npm run build:frontend"
   },
   "dependencies": {
     "archiver": "^7.0.1",
@@ -40,8 +48,19 @@
     "express",
     "mongodb",
     "jwt",
-    "api"
+    "api",
+    "backend",
+    "hostinger",
+    "jp-app"
   ],
   "author": "JP Group",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/jp-app-backend.git"
+  },
+  "homepage": "https://your-domain.com",
+  "bugs": {
+    "url": "https://github.com/your-username/jp-app-backend/issues"
+  }
 }

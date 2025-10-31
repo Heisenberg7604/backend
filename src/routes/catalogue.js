@@ -38,7 +38,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 50 * 1024 * 1024 // 50MB limit
+        fileSize: parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024 // Configurable file size limit
     },
     fileFilter: (req, file, cb) => {
         // Allow only PDF files
@@ -46,6 +46,14 @@ const upload = multer({
             cb(null, true);
         } else {
             cb(new Error('Only PDF files are allowed'), false);
+        }
+    },
+    onError: (err, next) => {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            const maxSizeMB = Math.round((parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024) / (1024 * 1024));
+            next(new Error(`File too large. Maximum size allowed is ${maxSizeMB}MB`));
+        } else {
+            next(err);
         }
     }
 });
