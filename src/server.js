@@ -44,6 +44,7 @@ const allowedOrigins = [
     'http://localhost:5000',
     'exp://192.168.1.100:8081',
     'exp://localhost:8081',
+    'exp://192.168.0.107:8081',
 
     // Production domains
     'https://jpgroup.industries',
