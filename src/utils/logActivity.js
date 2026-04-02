@@ -1,4 +1,4 @@
-const Activity = require('../models/Activity');
+import Activity from '../models/Activity.js';
 
 /**
  * Log user activity
@@ -10,7 +10,7 @@ const Activity = require('../models/Activity');
  * @param {string} params.ipAddress - IP address (optional)
  * @param {string} params.userAgent - User agent (optional)
  */
-async function logActivity({ type, userId = null, adminId = null, details = {}, ipAddress = null, userAgent = null }) {
+export async function logActivity({ type, userId = null, adminId = null, details = {}, ipAddress = null, userAgent = null }) {
     try {
         await Activity.create({
             type,
@@ -24,5 +24,3 @@ async function logActivity({ type, userId = null, adminId = null, details = {}, 
         console.error('Activity log failed:', err);
     }
 }
-
-module.exports = logActivity;

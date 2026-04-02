@@ -1,13 +1,13 @@
-const express = require('express');
-const {
+import express from 'express';
+import {
     subscribeNewsletter,
     unsubscribeNewsletter,
     getNewsletterSubscribers,
     updateSubscriberStatus,
     exportNewsletterSubscribers
-} = require('../controllers/newsletterController');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
-const { newsletterValidation } = require('../middleware/validation');
+} from '../controllers/newsletterController.js';
+import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { newsletterValidation } from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -23,4 +23,4 @@ router.get('/subscribers', getNewsletterSubscribers);
 router.put('/subscribers/:id/status', updateSubscriberStatus);
 router.get('/export', exportNewsletterSubscribers);
 
-module.exports = router;
+export default router;

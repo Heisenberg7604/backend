@@ -1,13 +1,23 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config();
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+
+import corsMiddleware from './config/cors.js';
+import './config/env.js';
+
+import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
+import catalogueRoutes from './routes/catalogue.js';
+import newsletterRoutes from './routes/newsletter.js';
+import notificationsRoutes from './routes/notifications.js';
+import otpRoutes from './routes/otp.js';
+
+dotenv.config();
 
 const app = express();
 
@@ -23,6 +33,8 @@ app.use(helmet({
 }));
 app.use(compression());
 
+app.use(corsMiddleware);
+
 // Rate limiting
 const limiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
@@ -33,67 +45,6 @@ const limiter = rateLimit({
     skip: (req) => req.path === '/api/health' || req.path === '/health' || req.path === '/api/ping'
 });
 app.use('/api/', limiter);
-
-// CORS configuration - FLEXIBLE FOR MOBILE & WEB
-const allowedOrigins = [
-    // Development origins
-    'http://localhost:8081',
-    'http://localhost:5001',
-    'http://localhost:3000',
-    'http://localhost:8080',
-    'http://localhost:5000',
-    'exp://192.168.1.100:8081',
-    'exp://localhost:8081',
-    'exp://192.168.0.107:8081',
-
-    // Production domains
-    'https://jpgroup.industries',
-    'https://www.jpgroup.industries',
-'https://www.jpgroup.industries:5001'
-];
-
-// Add CORS_ORIGIN (split by comma if multiple)
-if (process.env.CORS_ORIGIN) {
-    const corsOrigins = process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
-    allowedOrigins.push(...corsOrigins);
-}
-
-// Add FRONTEND_URL (split by comma if multiple)
-if (process.env.FRONTEND_URL) {
-    const frontendUrls = process.env.FRONTEND_URL.split(',').map(url => url.trim());
-    allowedOrigins.push(...frontendUrls);
-}
-
-console.log('🌐 CORS allowed origins:', allowedOrigins);
-
-app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, Postman, etc.)
-        if (!origin) return callback(null, true);
-
-        // Allow if origin is in allowed list
-        if (allowedOrigins.includes(origin)) return callback(null, true);
-
-        // Allow localhost for development
-        if (origin && origin.includes('localhost')) return callback(null, true);
-
-        // Allow jpgroup.industries domains
-        if (origin && origin.includes('jpgroup.industries')) return callback(null, true);
-
-        // Allow Expo development origins
-        if (origin && origin.startsWith('exp://')) return callback(null, true);
-
-        // Allow React Native Metro bundler
-        if (origin && origin.includes('metro')) return callback(null, true);
-
-        console.log('❌ CORS blocked origin:', origin);
-        return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    optionsSuccessStatus: 200
-}));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -130,22 +81,13 @@ if (process.env.MONGODB_URI) {
     console.log('⚠️  MONGODB_URI not provided - running without database');
 }
 
-// Serve frontend static files FIRST
-const frontendPath = path.join(__dirname, '../frontend/dist');
-if (fs.existsSync(frontendPath)) {
-    app.use(express.static(frontendPath));
-    console.log('✅ Frontend static files enabled');
-} else {
-    console.log('⚠️  Frontend dist folder not found');
-}
-
 // API Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/catalogue', require('./routes/catalogue'));
-app.use('/api/newsletter', require('./routes/newsletter'));
-app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/otp', require('./routes/otp'));
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/catalogue', catalogueRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/otp', otpRoutes);
 
 // Health check endpoints - SIMPLE AND RELIABLE
 app.get('/health', (req, res) => {
@@ -172,47 +114,6 @@ app.get('/api/ping', (req, res) => {
     });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-    res.status(200).json({
-        status: 'OK',
-        message: 'JP App Backend is running',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV,
-        endpoints: {
-            health: '/api/health',
-            ping: '/api/ping',
-            auth: '/api/auth',
-            admin: '/api/admin',
-            catalogue: '/api/catalogue',
-            newsletter: '/api/newsletter',
-            otp: '/api/otp'
-        }
-    });
-});
-
-// Handle React Router (return index.html for all non-API routes)
-app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/')) {
-        return res.status(404).json({
-            success: false,
-            message: 'API route not found',
-            error: 'not_found'
-        });
-    }
-
-    const indexPath = path.join(__dirname, '../frontend/dist/index.html');
-    if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-    } else {
-        res.status(404).json({
-            success: false,
-            message: 'Frontend not available',
-            error: 'frontend_not_found'
-        });
-    }
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('🚨 Server Error:', {
@@ -231,13 +132,21 @@ app.use((err, req, res, next) => {
     });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
+// API-only 404 handler (no HTML responses)
+app.use('/api', (req, res) => {
     res.status(404).json({
         success: false,
         data: {},
         message: 'Route not found',
         error: 'not_found'
+    });
+});
+
+// Non-API 404 handler (backend is API-only)
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'Route not found'
     });
 });
 
@@ -309,4 +218,4 @@ server.on('close', () => {
 // Prevent process from exiting
 process.stdin.resume();
 
-module.exports = app;
+export default app;

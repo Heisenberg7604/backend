@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiService } from '../services/apiService'
+import API_BASE from '../config/api'
 
 export default function ConnectionTest() {
     const [connectionStatus, setConnectionStatus] = useState('Testing...')
@@ -29,7 +30,7 @@ export default function ConnectionTest() {
             <h2 className="text-xl font-bold mb-4">Backend Connection Test</h2>
             <div className="space-y-2">
                 <p><strong>Status:</strong> {connectionStatus}</p>
-                <p><strong>API URL:</strong> {import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}</p>
+                <p><strong>API URL:</strong> {API_BASE}</p>
                 {backendData && (
                     <div className="mt-4">
                         <p><strong>Backend Status:</strong> {backendData.status}</p>

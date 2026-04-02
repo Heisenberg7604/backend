@@ -1,12 +1,14 @@
-const speakeasy = require('speakeasy');
-const QRCode = require('qrcode');
-const { validationResult } = require('express-validator');
-const User = require('../models/User');
-const { sendOTPEmail } = require('../services/emailService');
-const logActivity = require('../utils/logActivity');
+import speakeasy from 'speakeasy';
+import QRCode from 'qrcode';
+import { validationResult } from 'express-validator';
+import crypto from 'crypto';
+
+import User from '../models/User.js';
+import { sendOTPEmail } from '../services/emailService.js';
+import { logActivity } from '../utils/logActivity.js';
 
 // Generate OTP for password reset
-const generatePasswordResetOTP = async (req, res) => {
+export const generatePasswordResetOTP = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -41,7 +43,6 @@ const generatePasswordResetOTP = async (req, res) => {
         });
 
         // Generate a more secure OTP using crypto
-        const crypto = require('crypto');
         const secureOTP = crypto.randomInt(100000, 999999).toString();
 
         // Set OTP expiration (5 minutes)
@@ -107,7 +108,7 @@ const generatePasswordResetOTP = async (req, res) => {
 };
 
 // Verify OTP for password reset
-const verifyPasswordResetOTP = async (req, res) => {
+export const verifyPasswordResetOTP = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -134,7 +135,6 @@ const verifyPasswordResetOTP = async (req, res) => {
         }
 
         // Generate a temporary token for password reset
-        const crypto = require('crypto');
         const resetToken = crypto.randomBytes(32).toString('hex');
         const resetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -173,7 +173,7 @@ const verifyPasswordResetOTP = async (req, res) => {
 };
 
 // Resend OTP
-const resendPasswordResetOTP = async (req, res) => {
+export const resendPasswordResetOTP = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -204,7 +204,6 @@ const resendPasswordResetOTP = async (req, res) => {
         }
 
         // Generate new OTP
-        const crypto = require('crypto');
         const secureOTP = crypto.randomInt(100000, 999999).toString();
         const otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
 
@@ -265,10 +264,4 @@ const resendPasswordResetOTP = async (req, res) => {
             error: error.message
         });
     }
-};
-
-module.exports = {
-    generatePasswordResetOTP,
-    verifyPasswordResetOTP,
-    resendPasswordResetOTP
 };

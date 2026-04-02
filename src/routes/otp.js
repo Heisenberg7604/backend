@@ -1,10 +1,10 @@
-const express = require('express');
-const { body } = require('express-validator');
-const {
+import express from 'express';
+import { body } from 'express-validator';
+import {
     generatePasswordResetOTP,
     verifyPasswordResetOTP,
     resendPasswordResetOTP
-} = require('../controllers/otpController');
+} from '../controllers/otpController.js';
 
 const router = express.Router();
 
@@ -32,4 +32,4 @@ router.post('/generate-password-reset-otp', emailValidation, generatePasswordRes
 router.post('/verify-password-reset-otp', otpValidation, verifyPasswordResetOTP);
 router.post('/resend-password-reset-otp', emailValidation, resendPasswordResetOTP);
 
-module.exports = router;
+export default router;

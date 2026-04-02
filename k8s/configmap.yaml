@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: jp-app
+data:
+  NODE_ENV: "production"
+  ADMIN_EMAILS: "admin@jpgroup.com"
+  ADMIN_SEED_EMAIL: "admin@jpgroup.com"
+  RATE_LIMIT_MAX_REQUESTS: "100"
+  RATE_LIMIT_WINDOW_MS: "900000"
+  UPLOAD_PATH: "./uploads"
+  FRONTEND_URL: "https://jpgroup.industries"
+  JWT_EXPIRE: "7d"
+  SMTP_HOST: "smtp.rediffmailpro.com"
+  SMTP_PORT: "587"
+  SMTP_SECURE: "false"
+  SMTP_USER: "media@jpel.in"
+  SMTP_FROM: "media@jpel.in"
+  MAX_FILE_SIZE: "10485760"
+  CORS_ORIGIN: "http://jpgroup.local,https://jpgroup.industries,https://www.jpgroup.industries"

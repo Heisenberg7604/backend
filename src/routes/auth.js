@@ -1,8 +1,8 @@
-const express = require('express');
-const { authMiddleware } = require('../middleware/auth');
-const { registerValidation, loginValidation, profileValidation } = require('../middleware/validation');
-const { register, login, getProfile, updateProfile, logout } = require('../controllers/authController');
-const { resetPassword } = require('../controllers/passwordController');
+import express from 'express';
+import { authMiddleware } from '../middleware/auth.js';
+import { registerValidation, loginValidation, profileValidation } from '../middleware/validation.js';
+import { register, login, getProfile, updateProfile, logout } from '../controllers/authController.js';
+import { resetPassword } from '../controllers/passwordController.js';
 
 const router = express.Router();
 
@@ -16,4 +16,4 @@ router.get('/profile', authMiddleware, getProfile);
 router.put('/profile', authMiddleware, profileValidation, updateProfile);
 router.post('/logout', authMiddleware, logout);
 
-module.exports = router;
+export default router;

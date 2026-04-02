@@ -1,12 +1,17 @@
-const { validationResult } = require('express-validator');
-const Catalogue = require('../models/Catalogue');
-const Download = require('../models/Download');
-const logActivity = require('../utils/logActivity');
-const path = require('path');
-const fs = require('fs');
+import { validationResult } from 'express-validator';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+import Catalogue from '../models/Catalogue.js';
+import Download from '../models/Download.js';
+import { logActivity } from '../utils/logActivity.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Get all catalogues
-const getCatalogues = async (req, res) => {
+export const getCatalogues = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -61,7 +66,7 @@ const getCatalogues = async (req, res) => {
 };
 
 // Get catalogue by ID
-const getCatalogueById = async (req, res) => {
+export const getCatalogueById = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -94,7 +99,7 @@ const getCatalogueById = async (req, res) => {
 };
 
 // Upload catalogue (Admin only)
-const uploadCatalogue = async (req, res) => {
+export const uploadCatalogue = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({
@@ -146,7 +151,7 @@ const uploadCatalogue = async (req, res) => {
 };
 
 // Update catalogue (Admin only)
-const updateCatalogue = async (req, res) => {
+export const updateCatalogue = async (req, res) => {
     try {
         const { id } = req.params;
         const { description, category, isActive } = req.body;
@@ -195,7 +200,7 @@ const updateCatalogue = async (req, res) => {
 };
 
 // Delete catalogue (Admin only)
-const deleteCatalogue = async (req, res) => {
+export const deleteCatalogue = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -282,7 +287,7 @@ const MOBILE_PRODUCT_MAPPING = {
 };
 
 // Get all products with their catalogues
-const getProducts = async (req, res) => {
+export const getProducts = async (req, res) => {
     try {
         const products = Object.keys(PRODUCT_CATALOGUES).map(productId => ({
             id: productId,
@@ -310,7 +315,7 @@ const getProducts = async (req, res) => {
 };
 
 // Download multiple catalogues for a product
-const downloadProductCatalogues = async (req, res) => {
+export const downloadProductCatalogues = async (req, res) => {
     try {
         const { productId } = req.params;
         const userId = req.user._id; // Now guaranteed to exist due to authMiddleware
@@ -377,7 +382,7 @@ const downloadProductCatalogues = async (req, res) => {
         });
 
         // Send admin notification for product catalogue access
-        const { sendNotificationEmail } = require('../services/emailService');
+        const { sendNotificationEmail } = await import('../services/emailService.js');
         await sendNotificationEmail({
             subject: 'Product Catalogues Accessed',
             message: `${actualProductId} catalogues (${catalogues.length} files) have been accessed by ${req.user.name} (${req.user.email})${productId !== actualProductId ? ` (Mobile ID: ${productId})` : ''}`,
@@ -418,7 +423,7 @@ const downloadProductCatalogues = async (req, res) => {
 };
 
 // Download single catalogue with tracking
-const downloadCatalogue = async (req, res) => {
+export const downloadCatalogue = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user._id; // Now guaranteed to exist due to authMiddleware
@@ -491,7 +496,7 @@ const downloadCatalogue = async (req, res) => {
 
         // Send admin notification for catalogue download
         try {
-            const { sendNotificationEmail } = require('../services/emailService');
+            const { sendNotificationEmail } = await import('../services/emailService.js');
             await sendNotificationEmail({
                 subject: 'Catalogue Downloaded',
                 message: `${catalogue.originalName} has been downloaded by ${req.user.name} (${req.user.email})`,
@@ -552,7 +557,7 @@ const downloadCatalogue = async (req, res) => {
 };
 
 // Request catalogues by email
-const requestCataloguesByEmail = async (req, res) => {
+export const requestCataloguesByEmail = async (req, res) => {
     try {
         const { productId, productTitle, userEmail, requestedAt } = req.body;
         const userId = req.user ? req.user._id : null;
@@ -590,8 +595,6 @@ const requestCataloguesByEmail = async (req, res) => {
 
         // Create catalogue objects directly from files (no database dependency)
         const catalogues = [];
-        const fs = require('fs');
-        const path = require('path');
 
         for (const fileName of catalogueFileNames) {
             const filePath = path.join(__dirname, '../catalogue', fileName);
@@ -621,7 +624,7 @@ const requestCataloguesByEmail = async (req, res) => {
         }
 
         // Send email with catalogue attachments
-        const { sendCatalogueEmail } = require('../services/emailService');
+        const { sendCatalogueEmail } = await import('../services/emailService.js');
         const emailResult = await sendCatalogueEmail({
             to: userEmail,
             productTitle: actualProductId,
@@ -658,7 +661,7 @@ const requestCataloguesByEmail = async (req, res) => {
         }
 
         // Send admin notification
-        const { sendNotificationEmail } = require('../services/emailService');
+        const { sendNotificationEmail } = await import('../services/emailService.js');
         await sendNotificationEmail({
             subject: 'Catalogue Email Request',
             message: `${actualProductId} catalogues (${catalogues.length} files) have been requested by email${productId !== actualProductId ? ` (Mobile ID: ${productId})` : ''}`,
@@ -700,7 +703,7 @@ const requestCataloguesByEmail = async (req, res) => {
 };
 
 // Legacy track download function
-const trackDownload = async (req, res) => {
+export const trackDownload = async (req, res) => {
     try {
         console.log('🔥 LEGACY TRACK DOWNLOAD CALLED:', req.body);
         const { productId, productTitle, catalogueUrls, downloadedAt } = req.body;
@@ -756,17 +759,4 @@ const trackDownload = async (req, res) => {
             error: error.message
         });
     }
-};
-
-module.exports = {
-    getCatalogues,
-    getProducts,
-    getCatalogueById,
-    uploadCatalogue,
-    updateCatalogue,
-    deleteCatalogue,
-    downloadCatalogue,
-    downloadProductCatalogues,
-    requestCataloguesByEmail,
-    trackDownload
 };

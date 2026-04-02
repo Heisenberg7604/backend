@@ -1,10 +1,12 @@
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { authMiddleware, adminMiddleware, optionalAuthMiddleware } = require('../middleware/auth');
-const { catalogueValidation } = require('../middleware/validation');
-const {
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+import { authMiddleware, adminMiddleware, optionalAuthMiddleware } from '../middleware/auth.js';
+import { catalogueValidation } from '../middleware/validation.js';
+import {
     getCatalogues,
     getProducts,
     getCatalogueById,
@@ -15,9 +17,12 @@ const {
     downloadProductCatalogues,
     requestCataloguesByEmail,
     trackDownload
-} = require('../controllers/catalogueController');
+} from '../controllers/catalogueController.js';
 
 const router = express.Router();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -81,4 +86,4 @@ router.delete('/:id', deleteCatalogue);
 // Legacy route for tracking downloads
 router.post('/download', trackDownload);
 
-module.exports = router;
+export default router;

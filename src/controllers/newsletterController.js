@@ -1,10 +1,10 @@
-const { validationResult } = require('express-validator');
-const NewsletterSubscriber = require('../models/NewsletterSubscriber');
-const logActivity = require('../utils/logActivity');
-const { Parser } = require('json2csv');
+import { validationResult } from 'express-validator';
+import NewsletterSubscriber from '../models/NewsletterSubscriber.js';
+import { logActivity } from '../utils/logActivity.js';
+import { Parser } from 'json2csv';
 
 // Subscribe to newsletter
-const subscribeNewsletter = async (req, res) => {
+export const subscribeNewsletter = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -49,7 +49,7 @@ const subscribeNewsletter = async (req, res) => {
 
                 // Send admin notification for newsletter re-subscription
                 try {
-                    const { sendNotificationEmail } = require('../services/emailService');
+                    const { sendNotificationEmail } = await import('../services/emailService.js');
                     await sendNotificationEmail({
                         subject: 'Newsletter Re-subscription',
                         message: `${name || 'Anonymous'} has re-subscribed to the newsletter`,
@@ -101,7 +101,7 @@ const subscribeNewsletter = async (req, res) => {
 
         // Send admin notification for newsletter subscription
         try {
-            const { sendNotificationEmail } = require('../services/emailService');
+            const { sendNotificationEmail } = await import('../services/emailService.js');
             await sendNotificationEmail({
                 subject: 'New Newsletter Subscription',
                 message: `${name || 'Anonymous'} has subscribed to the newsletter`,
@@ -142,7 +142,7 @@ const subscribeNewsletter = async (req, res) => {
 };
 
 // Unsubscribe from newsletter
-const unsubscribeNewsletter = async (req, res) => {
+export const unsubscribeNewsletter = async (req, res) => {
     try {
         const { token } = req.params;
 
@@ -187,7 +187,7 @@ const unsubscribeNewsletter = async (req, res) => {
 };
 
 // Get newsletter subscribers (Admin only)
-const getNewsletterSubscribers = async (req, res) => {
+export const getNewsletterSubscribers = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -242,7 +242,7 @@ const getNewsletterSubscribers = async (req, res) => {
 };
 
 // Update subscriber status (Admin only)
-const updateSubscriberStatus = async (req, res) => {
+export const updateSubscriberStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { isActive } = req.body;
@@ -290,7 +290,7 @@ const updateSubscriberStatus = async (req, res) => {
 };
 
 // Export newsletter subscribers to CSV (Admin only)
-const exportNewsletterSubscribers = async (req, res) => {
+export const exportNewsletterSubscribers = async (req, res) => {
     try {
         const subscribers = await NewsletterSubscriber.find({});
 
@@ -323,12 +323,4 @@ const exportNewsletterSubscribers = async (req, res) => {
             error: error.message
         });
     }
-};
-
-module.exports = {
-    subscribeNewsletter,
-    unsubscribeNewsletter,
-    getNewsletterSubscribers,
-    updateSubscriberStatus,
-    exportNewsletterSubscribers
 };

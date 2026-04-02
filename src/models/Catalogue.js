@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const catalogueSchema = new mongoose.Schema({
     fileName: { type: String, required: true },
@@ -21,4 +21,6 @@ catalogueSchema.index({ fileName: 1 });
 catalogueSchema.index({ uploadedAt: -1 });
 catalogueSchema.index({ isActive: 1 });
 
-module.exports = mongoose.model('Catalogue', catalogueSchema);
+const Catalogue = mongoose.model('Catalogue', catalogueSchema);
+
+export default Catalogue;

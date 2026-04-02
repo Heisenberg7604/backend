@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const catalogueDownloadSchema = new mongoose.Schema({
     user: {
@@ -45,4 +45,6 @@ catalogueDownloadSchema.index({ user: 1 });
 catalogueDownloadSchema.index({ productId: 1 });
 catalogueDownloadSchema.index({ downloadDate: -1 });
 
-module.exports = mongoose.model('CatalogueDownload', catalogueDownloadSchema);
+const CatalogueDownload = mongoose.model('CatalogueDownload', catalogueDownloadSchema);
+
+export default CatalogueDownload;

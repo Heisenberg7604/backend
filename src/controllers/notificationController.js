@@ -1,8 +1,8 @@
-const { validationResult } = require('express-validator');
-const Notification = require('../models/Notification');
+import { validationResult } from 'express-validator';
+import Notification from '../models/Notification.js';
 
 // Get notifications for admin
-const getNotifications = async (req, res) => {
+export const getNotifications = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -94,7 +94,7 @@ const markAsRead = async (req, res) => {
 };
 
 // Mark all notifications as read
-const markAllAsRead = async (req, res) => {
+export const markAllAsRead = async (req, res) => {
     try {
         const userId = req.user.userId;
 
@@ -122,7 +122,7 @@ const markAllAsRead = async (req, res) => {
 };
 
 // Delete notification
-const deleteNotification = async (req, res) => {
+export const deleteNotification = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -150,7 +150,7 @@ const deleteNotification = async (req, res) => {
 };
 
 // Create notification (admin only)
-const createNotification = async (req, res) => {
+export const createNotification = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -191,7 +191,7 @@ const createNotification = async (req, res) => {
 };
 
 // Get notification stats
-const getNotificationStats = async (req, res) => {
+export const getNotificationStats = async (req, res) => {
     try {
         const [
             total,
@@ -234,11 +234,4 @@ const getNotificationStats = async (req, res) => {
     }
 };
 
-module.exports = {
-    getNotifications,
-    markNotificationAsRead: markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    createNotification,
-    getNotificationStats
-};
+export const markNotificationAsRead = markAsRead;

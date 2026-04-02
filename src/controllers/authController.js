@@ -1,9 +1,9 @@
-const jwt = require('jsonwebtoken');
-const { validationResult } = require('express-validator');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const logActivity = require('../utils/logActivity');
-const { sendNotificationEmail } = require('../services/emailService');
+import jwt from 'jsonwebtoken';
+import { validationResult } from 'express-validator';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
+import { logActivity } from '../utils/logActivity.js';
+import { sendNotificationEmail } from '../services/emailService.js';
 
 // Generate JWT Token
 const generateToken = (userId, role) => {
@@ -13,7 +13,7 @@ const generateToken = (userId, role) => {
 };
 
 // Register new user
-const register = async (req, res) => {
+export const register = async (req, res) => {
     try {
         // Check for validation errors
         const errors = validationResult(req);
@@ -123,7 +123,7 @@ const register = async (req, res) => {
 };
 
 // Login user
-const login = async (req, res) => {
+export const login = async (req, res) => {
     try {
         // Check for validation errors
         const errors = validationResult(req);
@@ -227,7 +227,7 @@ const login = async (req, res) => {
 };
 
 // Get current user profile
-const getProfile = async (req, res) => {
+export const getProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
 
@@ -266,7 +266,7 @@ const getProfile = async (req, res) => {
 };
 
 // Update user profile
-const updateProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -322,7 +322,7 @@ const updateProfile = async (req, res) => {
 };
 
 // Logout (client-side token removal, but we can log it)
-const logout = async (req, res) => {
+export const logout = async (req, res) => {
     try {
         // In a JWT-based system, logout is typically handled client-side
         // by removing the token. We can log the logout event here.
@@ -339,12 +339,4 @@ const logout = async (req, res) => {
             message: 'Server error'
         });
     }
-};
-
-module.exports = {
-    register,
-    login,
-    getProfile,
-    updateProfile,
-    logout
 };

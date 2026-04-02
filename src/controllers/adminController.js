@@ -1,14 +1,14 @@
-const { validationResult } = require('express-validator');
-const User = require('../models/User');
-const Activity = require('../models/Activity');
-const Download = require('../models/Download');
-const Catalogue = require('../models/Catalogue');
-const NewsletterSubscriber = require('../models/NewsletterSubscriber');
-const logActivity = require('../utils/logActivity');
-const { Parser } = require('json2csv');
+import { validationResult } from 'express-validator';
+import User from '../models/User.js';
+import Activity from '../models/Activity.js';
+import Download from '../models/Download.js';
+import Catalogue from '../models/Catalogue.js';
+import NewsletterSubscriber from '../models/NewsletterSubscriber.js';
+import { logActivity } from '../utils/logActivity.js';
+import { Parser } from 'json2csv';
 
 // Get admin dashboard stats
-const getDashboardStats = async (req, res) => {
+export const getDashboardStats = async (req, res) => {
     try {
         const [
             totalUsers,
@@ -72,7 +72,7 @@ const getDashboardStats = async (req, res) => {
 };
 
 // Get comprehensive statistics
-const getStats = async (req, res) => {
+export const getStats = async (req, res) => {
     try {
         const { period = '30d' } = req.query;
 
@@ -191,7 +191,7 @@ const getStats = async (req, res) => {
 };
 
 // Get all users with pagination and search
-const getUsers = async (req, res) => {
+export const getUsers = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -249,7 +249,7 @@ const getUsers = async (req, res) => {
 };
 
 // Create new user
-const createUser = async (req, res) => {
+export const createUser = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -311,7 +311,7 @@ const createUser = async (req, res) => {
 };
 
 // Get user by ID
-const getUserById = async (req, res) => {
+export const getUserById = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -359,7 +359,7 @@ const getUserById = async (req, res) => {
 };
 
 // Update user
-const updateUser = async (req, res) => {
+export const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
@@ -407,7 +407,7 @@ const updateUser = async (req, res) => {
 };
 
 // Update user status (activate/deactivate)
-const updateUserStatus = async (req, res) => {
+export const updateUserStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { isActive } = req.body;
@@ -453,7 +453,7 @@ const updateUserStatus = async (req, res) => {
 };
 
 // Soft delete user
-const deleteUser = async (req, res) => {
+export const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -499,7 +499,7 @@ const deleteUser = async (req, res) => {
 };
 
 // Get recent activities
-const getActivities = async (req, res) => {
+export const getActivities = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -546,7 +546,7 @@ const getActivities = async (req, res) => {
 };
 
 // Get catalogue downloads
-const getCatalogueDownloads = async (req, res) => {
+export const getCatalogueDownloads = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -589,7 +589,7 @@ const getCatalogueDownloads = async (req, res) => {
 };
 
 // Get newsletter subscribers
-const getNewsletterSubscribers = async (req, res) => {
+export const getNewsletterSubscribers = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -644,7 +644,7 @@ const getNewsletterSubscribers = async (req, res) => {
 };
 
 // Update subscriber status
-const updateSubscriberStatus = async (req, res) => {
+export const updateSubscriberStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { isActive } = req.body;
@@ -684,7 +684,7 @@ const updateSubscriberStatus = async (req, res) => {
 };
 
 // Export newsletter subscribers to CSV
-const exportNewsletterSubscribers = async (req, res) => {
+export const exportNewsletterSubscribers = async (req, res) => {
     try {
         const subscribers = await NewsletterSubscriber.find({});
 
@@ -717,20 +717,4 @@ const exportNewsletterSubscribers = async (req, res) => {
             error: error.message
         });
     }
-};
-
-module.exports = {
-    getDashboardStats,
-    getStats,
-    getUsers,
-    createUser,
-    getUserById,
-    updateUser,
-    updateUserStatus,
-    deleteUser,
-    getActivities,
-    getCatalogueDownloads,
-    getNewsletterSubscribers,
-    updateSubscriberStatus,
-    exportNewsletterSubscribers
 };

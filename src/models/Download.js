@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const downloadSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
@@ -17,4 +17,6 @@ downloadSchema.index({ userId: 1, timestamp: -1 });
 downloadSchema.index({ catalogueId: 1, timestamp: -1 });
 downloadSchema.index({ timestamp: -1 });
 
-module.exports = mongoose.model('Download', downloadSchema);
+const Download = mongoose.model('Download', downloadSchema);
+
+export default Download;

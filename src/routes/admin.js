@@ -1,7 +1,7 @@
-const express = require('express');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
-const { createUserValidation, updateUserValidation } = require('../middleware/validation');
-const {
+import express from 'express';
+import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { createUserValidation, updateUserValidation } from '../middleware/validation.js';
+import {
     getDashboardStats,
     getUsers,
     getUserById,
@@ -15,7 +15,7 @@ const {
     getNewsletterSubscribers,
     updateSubscriberStatus,
     exportNewsletterSubscribers
-} = require('../controllers/adminController');
+} from '../controllers/adminController.js';
 
 const router = express.Router();
 
@@ -48,4 +48,4 @@ router.get('/newsletter/subscribers', getNewsletterSubscribers);
 router.put('/newsletter/subscribers/:id/status', updateSubscriberStatus);
 router.get('/newsletter/export', exportNewsletterSubscribers);
 
-module.exports = router;
+export default router;

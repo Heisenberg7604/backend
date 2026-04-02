@@ -1,7 +1,6 @@
-const nodemailer = require('nodemailer');
-const logActivity = require('../utils/logActivity');
-const fs = require('fs');
-const path = require('path');
+import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
 
 // Create SMTP transporter - supports custom SMTP and Gmail fallback
 const createTransporter = () => {
@@ -50,7 +49,7 @@ const createTransporter = () => {
 };
 
 // Send email function - clean and fast
-const sendEmail = async ({ to, subject, html, text, from = process.env.SMTP_FROM || 'media.jpel@gmail.com' }) => {
+export const sendEmail = async ({ to, subject, html, text, from = process.env.SMTP_FROM || 'media.jpel@gmail.com' }) => {
     try {
         const transporter = createTransporter();
 
@@ -73,7 +72,7 @@ const sendEmail = async ({ to, subject, html, text, from = process.env.SMTP_FROM
 };
 
 // Send notification emails to admin emails
-const sendNotificationEmail = async ({ subject, message, type = 'notification', data = {} }) => {
+export const sendNotificationEmail = async ({ subject, message, type = 'notification', data = {} }) => {
     const adminEmails = [
         'info@jpel.in',
         'rakesh@jpel.in'
@@ -114,7 +113,7 @@ const sendNotificationEmail = async ({ subject, message, type = 'notification', 
 
 
 // Send catalogue email with PDF attachments
-const sendCatalogueEmail = async ({ to, productTitle, catalogues, userName, userEmail }) => {
+export const sendCatalogueEmail = async ({ to, productTitle, catalogues, userName, userEmail }) => {
     try {
         const transporter = createTransporter();
 
@@ -195,7 +194,7 @@ const sendCatalogueEmail = async ({ to, productTitle, catalogues, userName, user
 };
 
 // Send OTP email for password reset
-const sendOTPEmail = async ({ to, otp, userName }) => {
+export const sendOTPEmail = async ({ to, otp, userName }) => {
     const html = `
         <div style="font-family: Arial, sans-serif; border: 2px dashed #000; padding: 20px; max-width: 600px; margin: auto;">
             <!-- Logo -->
@@ -236,13 +235,6 @@ const sendOTPEmail = async ({ to, otp, userName }) => {
         html: html,
         from: process.env.SMTP_FROM || 'media.jpel@gmail.com'
     });
-};
-
-module.exports = {
-    sendEmail,
-    sendNotificationEmail,
-    sendCatalogueEmail,
-    sendOTPEmail
 };
 
 // Email service ready

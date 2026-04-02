@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
-const authMiddleware = async (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
     try {
         const header = req.headers.authorization;
         if (!header || !header.startsWith('Bearer ')) {
@@ -39,7 +39,7 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-const optionalAuthMiddleware = async (req, res, next) => {
+export const optionalAuthMiddleware = async (req, res, next) => {
     try {
         const header = req.headers.authorization;
 
@@ -71,7 +71,7 @@ const optionalAuthMiddleware = async (req, res, next) => {
     }
 };
 
-const requireRole = (role) => (req, res, next) => {
+export const requireRole = (role) => (req, res, next) => {
     if (!req.user) {
         return res.status(401).json({
             success: false,
@@ -93,7 +93,7 @@ const requireRole = (role) => (req, res, next) => {
     next();
 };
 
-const adminMiddleware = async (req, res, next) => {
+export const adminMiddleware = async (req, res, next) => {
     try {
         // Check if user is authenticated first
         if (!req.user) {
@@ -127,11 +127,4 @@ const adminMiddleware = async (req, res, next) => {
             error: error.message
         });
     }
-};
-
-module.exports = {
-    authMiddleware,
-    optionalAuthMiddleware,
-    adminMiddleware,
-    requireRole
 };

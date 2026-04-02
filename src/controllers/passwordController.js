@@ -1,9 +1,9 @@
-const { validationResult } = require('express-validator');
-const User = require('../models/User');
-const logActivity = require('../utils/logActivity');
+import { validationResult } from 'express-validator';
+import User from '../models/User.js';
+import { logActivity } from '../utils/logActivity.js';
 
 // Reset password with OTP verification
-const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -64,8 +64,4 @@ const resetPassword = async (req, res) => {
             error: error.message
         });
     }
-};
-
-module.exports = {
-    resetPassword
 };
